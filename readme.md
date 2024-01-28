@@ -3,7 +3,8 @@ tramite lo scraping dei siti web prendo infromazioni come:
 
 | journal | url | publication_date | source | img | body_count |
 |---------|-----|------------------|--------|-----|------------|
- Queste informazioni vengono inserite tutte in un `pandas.DataFrame` e poi salvate su uno spreadsheet
+
+Queste informazioni vengono inserite tutte in un `pandas.DataFrame` e poi salvate su uno spreadsheet
 ## Implementazioni
 - Finire la classe `StupidSpider_1` con i metodi opportuni.
 - Implementare il `threading` per le richieste dei singoli url. Esempio:
