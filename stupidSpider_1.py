@@ -5,11 +5,10 @@ import requests, \
     random, \
     re, \
     pandas, \
-    dataclasses, \
     validators
 
 from typing import Literal
-from datetime import datetime
+from datetime import datetime, date
 
 import sqlalchemy
 from bs4 import BeautifulSoup
@@ -55,20 +54,17 @@ class StupidSpider:
         'Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; Touch; rv:11.0) like Gecko',
         'Mozilla/5.0 (Windows NT 5.1; rv:40.0) Gecko/20100101 Firefox/40.0',
     ]
-    __MONRIF: list = ['ilgiorno', 'lanazione', 'ilrestodelcarlino', 'quotidiano']
 
-    datetime_to_scrape: datetime = datetime.now()
-    __url: str = None
-    __type_of_doc: dict = None
-    __journal: str = None
-    __connection = None
+    __MONRIF: list = ['ilgiorno', 'lanazione', 'ilrestodelcarlino', 'quotidiano', 'iltelegrafolivorno']
+
+    __connection: sqlalchemy.engine.base.Engine | Spreadsheet = None
+
     __data_frame: pandas.DataFrame = pandas.DataFrame()
 
-    def __init__(self, url: str = None,
+    def __init__(self, url: str,
                  local: str = None,
                  type: Literal['sitemap', 'rss-feed'] = 'xml-sitemap',
-                 datetime: datetime = None,
-                 my_journals: list | str = None,
+                 date_to_scrape: datetime = datetime.now(),
                  connection: str = None,
                  range: str = None
                  ) -> None:
@@ -80,76 +76,94 @@ class StupidSpider:
             - If url is None must be set_url first
             - the `get_article_source()` function works only with Monrif Journal
 
-        Examples:
-            >>> my_spider = StupidSpider('https://example.com/sitemap.xml').mine()
-            as equal to:
-            >>> my_spider = StupidSpider()
-            >>> my_spider.set_url('https://example.com/sitemap.xml')
-            >>> my_spider.mine()
-
         Parameters:
             url (str): url of sitemap or rss-feed
+            local (str, optional): location of journal
             type(Literal['sitemap', 'rss-feed']): select type of document to parse
-            datetime (datetime, optional): datetime to check pubdate. Defaults today
-            my_journals (list,str): list to personal journals
+            date_to_scrape (datetime, optional): datetime to check pubdate. Defaults today
+            connection (str, optional): connection type => see :func:`set_connection()`
+            range (str, optional): if connection is a :class:`Spreadsheet` object, range must be specified
         """
 
         self.local = local
-        self.set_url(url)
-        self.set_type_of_document(type)
-        self.__data_frame: pandas.DataFrame = pandas.DataFrame()
+        self.url = url
+        self.content_type = type
 
         if datetime:
-            self.datetime_to_scrape = datetime
+            self.date_time = date_to_scrape
 
-        if my_journals:
-            self.__MONRIF = my_journals if isinstance(my_journals, list) else [my_journals]
-
-        self.set_connection_object(connection, range)
-
-    def set_connection_object(self, connection: str, range: str = None) -> None:
         if connection:
-            if re.match(
-                    r'(.+):\/\/[a-zA-Z0-9-_]+:[a-zA-Z0-9-_]+@(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|[a-zA-Z0-9-_]+:\d{4}\/[a-zA-Z0-9-_]+',
-                    connection):
-                self.__connection = sqlalchemy.create_engine(connection)
-                self.__connection.connect()
-            elif range and re.match(r"[a-zA-Z0-9-_]+![A-Z]{1,3}\d*:[A-Z]{1,3}\d*", range):
-                self.__connection = Spreadsheet(connection, range)
-                self.__connection.check_status()
-            else:
-                raise Exception('no dbms or spreadsheet')
+            self.set_connection(connection, range)
 
-        else:
-            raise Exception('pippo')
+    ############
+    #  GETTER  #
+    ############
+    @property
+    def url(self) -> str:
+        return self.__url
 
-    def get_connection(self):
-        return self.__connection
-
-    def get_journal(self) -> str:
+    @property
+    def journal(self) -> str:
         r"""
-        Returns:
-            a current journal
+        This is a **read-only** attrbute is created and set by the url setter, because it is a domain dependent attribute
         """
         return self.__journal
 
-    def set_url(self, url: str) -> None:
+    @property
+    def content_type(self) -> AttributeError:
+        raise AttributeError(f"property content_type object has no getter, write-only attribute")
+
+    @property
+    def connection(self) -> sqlalchemy.engine.base.Engine | Spreadsheet:
+        return self.__connection
+
+    @property
+    def data(self) -> pandas.DataFrame:
+        return self.__data_frame
+
+
+    ############
+    #  SETTER  #
+    ############
+
+    @url.setter
+    def url(self, url: str) -> None:
         r"""
-        Args:
-            url (str): url to set and validate
+        Setter method to validate the url attribute and also set the ``journal`` attribute.
+
+        The ``journal`` attribute was parsed from the url, taking only the **second-level domain** and adding the
+        location at the beginning, if it exists.
+
+        Examples:
+            >>> istance.url = 'https://www.example.com/sitemap.xml'
+            >>> istance.local = 'Honolulu'
+            >>> istance.journal
+            Honolulu-example
+
+        Parameters:
+            url (str): Valid URL of sitemap or rss-feed
+
+                es => ``https://example.com/sitemap.xml`` or ``https://example.com/feed.rss``
+
+        See Also:
+            - https://validators.readthedocs.io/en/latest/
+
+        Raises:
+            TypeError: if url not is a valid url
         """
-        if not validators.url(url):
-            raise Exception(
-                f'\nInvalid URL: the url {url} is not valid\n\tThe url must be composed in relation to the rfc1808 document\n\t<scheme>://<net_loc>/<path>... ')
 
-        self.__journal = self.local or '' + re.sub(r'^http(s)?://\w+\.(?P<journal>\w+)\.(.*)',
-                                                   r'\g<journal>', url)
-        self.__url = url
+        if validators.url(url):
+            self.__url = url
+            self.__journal = (self.local + '-' if self.local else '') + re.sub(
+                r'^http(s)?://\w+\.(?P<journal>\w+)\.(.*)', r'\g<journal>', url)
+        else:
+            raise TypeError(f"{url} is not a valid url")
 
-    def set_type_of_document(self, type: Literal['sitemap', 'rss-feed']) -> None:
+    @content_type.setter
+    def content_type(self, type: Literal['sitemap', 'rss-feed'] = 'xml-sitemap') -> None:
         r"""
         Examples:
-            sitemap:
+            **sitemap**:
                 ``<url>``
                     ``<loc>https://example.com/path-to-article</loc>``
 
@@ -165,36 +179,84 @@ class StupidSpider:
                     ``</news:news>``
                 ``</url>``
 
-                rss:
-                    ``<item>``
-                        ``<title>Example of title</title>``
+            **rss**:
+                ``<item>``
+                    ``<title>Example of title</title>``
 
-                        ``<link>https://example.com/path-to-article</link>``
+                    ``<link>https://example.com/path-to-article</link>``
 
-                        ``<pubDate>Example of date</pubDate>``
+                    ``<pubDate>Example of date</pubDate>``
 
-                        ``...``
-                    ``</item>``
+                    ``...``
+                ``</item>``
         Args:
             type (Literal['sitemap', 'rss-feed']): type of document to parse if is sitemap or rss-feed
 
         """
         match type:
             case 'xml-sitemap':
-                self.__type_of_doc = {
+                self.__content_type = {
                     'group': 'url',
                     'date': 'publication_date',
                     'url': 'loc',
                 }
+                pass
             case 'rss-feed':
-                self.__type_of_doc = {
+                self.__content_type = {
                     'group': 'item',
                     'date': 'pubDate',
                     'url': 'link',
                 }
+                pass
+            case _:
+                raise TypeError('Unrecognized content type')
+
+    ############
+    #  METHOD  #
+    ############
+
+    def set_connection(self, connection: str, range: str = None) -> None:
+        r"""Create a connection to database and test if it works.
+        Note:
+            It can be connected to:
+
+            - **RDBMS**: with a URI such as ``schmea://userName:password@host[:port]/databaseName``.
+                This will be a connection to :class:`sqlalchemy`
+            - **SHEET**: with **UUID** of the document and its **range**
+                This will be a connection to :class:`Spreadsheet`
+
+        Parameters:
+            connection (str): Can be a RDBMS URi or UUID of sheet
+
+                - **URI**: ``'schmea://userName:password@host[:port]/databaseName'``
+                - **UUID**: 'docs.google.com/spreadsheets/d/**<<UUID>>**/edit'
+
+            range (str, optional): Works only if the connection is a UUID Sheet.
+
+                must be composed: ``<name>!COL[row]:COL[row]``
+
+                Ex:
+
+                >>> range = "sheet1!A2:Z5"
+
+                **or**
+
+                >>> range = "sheet!A:K"
+        """
+
+        if re.match(
+                r'(.+)://[a-zA-Z0-9-_]+:[a-zA-Z0-9-_]+@((\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|[a-zA-Z0-9-_]+)(:\d{4})?/[a-zA-Z0-9-_]+',
+                connection):
+            self.__connection = sqlalchemy.create_engine(connection)
+            self.__connection.connect()
+        elif range and re.match(r"[a-zA-Z0-9-_]+![A-Z]{1,3}\d*:[A-Z]{1,3}\d*", range):
+            self.__connection = Spreadsheet(connection, range)
+            self.__connection.check_status()
+        else:
+            raise Exception('Connection error: DBMS or Spreadsheet Not found')
 
     @staticmethod
-    def _requests_url(url, param: dict | None = None) -> requests.Response:
+    def requests_url(url, param: dict | None = None) -> requests.Response:
         r"""
         Check response of the first call and if it is blocked by cloudflare, try with another request
         :params:
@@ -210,23 +272,31 @@ class StupidSpider:
         return response
 
     @staticmethod
-    def parse_datetime_UTC_rome(my_date: str) -> datetime:
+    def parse_datetime_UTC_rome(my_date: str | datetime) -> datetime:
         r"""
-        Args:
+        Parameters:
             my_date: the raw string date not converted
+
         Returns:
-            datetime parsed to YYYY-MM-DD HH:MM:SS
+            (datetime): parsed to ``YYYY-MM-DD HH:MM:SS``
         """
-        date_time = parse(my_date)
-        utc_time = date_time.astimezone(gettz('UTC+1')).strftime('%Y-%m-%d %H:%M:%S')
+        if isinstance(my_date, str):
+            my_date = parse(my_date)
+
+        utc_time = my_date.astimezone(gettz('UTC+1')).strftime('%Y-%m-%d %H:%M:%S')
         return datetime.strptime(utc_time, '%Y-%m-%d %H:%M:%S')
 
     @staticmethod
-    def drop_duplicates_from_data_frames(*data_frame: pandas.DataFrame) -> pandas.DataFrame:
-        """
+    def drop_duplicates_from_data_frames(*data_frame: pandas.DataFrame, subset: list) -> pandas.DataFrame:
+        r"""
         Clean the dataframe from the duplicate entities and return the cleanest dataframe possible.
-        :param data_frame: multiple data set to clean the duplicate value
-        :return: the cleaned dataframe
+
+        Parameters:
+            subset (list): The values that need to be checked to find duplicates
+            data_frame(pandas.DataFrame): multiple data set to clean the duplicate value
+
+        Returns:
+            (pandas.DataFrame): One dataframe with all data and cleaned of all duplicate values
         """
         data_frame_concatenated = concatenated_result = pandas.DataFrame()
 
@@ -237,12 +307,12 @@ class StupidSpider:
                 objs=[data_frame_concatenated, dataFrame],
                 ignore_index=True,
             )
-        concatenated_result.drop_duplicates(subset=['url'], ignore_index=True, inplace=True, keep=False)
+        concatenated_result.drop_duplicates(subset=subset, ignore_index=True, inplace=True, keep=False)
         return concatenated_result
 
     @staticmethod
     def __get_article_data(url: str) -> json:
-        response = StupidSpider._requests_url(url, {'User-Agent': random.choice(StupidSpider.__USER_AGENT)})
+        response = StupidSpider.requests_url(url, {'User-Agent': random.choice(StupidSpider.__USER_AGENT)})
 
         if response.status_code != 200:
             raise requests.HTTPError(f"The request was unsuccessful:\n {url} response with code {response.status_code}")
@@ -259,77 +329,71 @@ class StupidSpider:
         :return: the Source of the news
         """
         result: dict = {}
-        try:
-            jsonData = StupidSpider.__get_article_data(url)
-            type = jsonData['__typename'] if jsonData['__typename'] is not None else ''
+        jsonData = StupidSpider.__get_article_data(url)
+        type = jsonData['__typename'] if jsonData['__typename'] is not None else ''
 
-            if str.lower(type) == 'article':
-                match jsonData['editorial']:
-                    case 'carta':
-                        result['editorial'] = 'carta'
-                    case 'Synch da Polopoly':
-                        result['editorial'] = 'webcarta'
-                    case 'aicarta':
-                        result['editorial'] = 'carta-opti'
-                    case _:
-                        result['editorial'] = 'web'
+        if str.lower(type) == 'article':
+            match jsonData['source']:
+                case 'carta':
+                    result['editorial'] = 'carta'
+                case 'Synch da Polopoly':
+                    result['editorial'] = 'webcarta'
+                case 'aicarta':
+                    result['editorial'] = 'carta-opti'
+                case _:
+                    result['editorial'] = 'web'
 
-                result['image'] = 1 if jsonData['socialImage'] and jsonData['socialImage']['baseUrl'] else 0
-                if jsonData['body']:
-                    result['body'] = len(jsonData['body'].split())
+            result['image'] = 1 if jsonData['socialImage'] and jsonData['socialImage']['baseUrl'] else 0
+            if jsonData['body']:
+                result['body'] = len(jsonData['body'].split())
 
-                ##TODO: Implement a **knowarg to get item and SUBITEM from json
+            ##TODO: Implement a **knowarg to get item and SUBITEM from json
 
             return result
-        except AttributeError as NoneType:
-            print(NoneType, url)
-        except Exception as E:
-            print(E, url)
 
-    def undermining(self):  # -> str:
+    def undermining(self) -> pandas.DataFrame:
         r"""
         """
-
-        result: dict = {}
-
-        requested: requests.Response = StupidSpider._requests_url(self.__url, param={
-            'User-Agent': random.choice(self.__USER_AGENT)})
+        result: dict = {
+            'editorial': None,
+            'image': None,
+            'body': None
+        }
+        dataResult = pandas.DataFrame()
+        requested: requests.Response = StupidSpider.requests_url(self.url,
+                                                                 param={'User-Agent': random.choice(self.__USER_AGENT)})
         response = gzip.decompress(requested.content) if 'octet-stream' in requested.headers.get(
             'Content-Type') else requested.content
         soup = BeautifulSoup(response, 'xml')
 
-        for item in soup.find_all(self.__type_of_doc['group']):  ## get url from sitemap
+        for item in soup.find_all(self.__content_type['group']):  ## get url from sitemap
 
-            art_datetime = self.parse_datetime_UTC_rome(item.find(self.__type_of_doc['date']).text)  # published date
+            art_datetime = self.parse_datetime_UTC_rome(item.find(self.__content_type['date']).text)  # published date
 
-            if art_datetime.date() == self.datetime_to_scrape.date():
-                url = item.find(self.__type_of_doc['url']).text
+            if art_datetime.date() == self.date_time.date():
+                url = item.find(self.__content_type['url']).text
 
-                if self.__journal in self.__MONRIF:
-                    result = self.__get_article_data(url)
-                self.__data_frame = self.__data_frame._append({
-                                                                  'journal': self.__journal,
-                                                                  'url': url,
-                                                                  'datetime': str(art_datetime),
-                                                              }.update(result),
-                                                              ignore_index=True)
+                if self.journal in self.__MONRIF:
+                    result = self.get_article_info(url)
 
-        return self.__data_frame.to_string()
+                series = {
+                    'journal': self.journal,
+                    'url': url,
+                    'datetime': str(art_datetime),
+                }
+                series.update(result)
+                dataResult = dataResult._append(series,ignore_index=True)
+
+        self.__data_frame = dataResult
+        return dataResult
 
     def upload_data(self):
         # Se la connessione è una connessione al database
-        if isinstance(self.__connection, sqlalchemy.engine.base.Engine) and self.__connection.connect():
+        if isinstance(self.connection, sqlalchemy.engine.base.Engine) and self.connection.connect():
             print('sql')
-        elif isinstance(self.__connection, Spreadsheet):
+        elif isinstance(self.connection, Spreadsheet):
             print('popp')
 
-    def get_data(self, **kwargs):
-        if isinstance(self.__connection, sqlalchemy.engine.base.Engine):
-            pass
-        elif isinstance(self.__connection, Spreadsheet):
-            data_frame = pandas.DataFrame(self.__connection.get_data()).fillna(0)
-            data_frame.columns = data_frame.iloc[0]
-            return data_frame[1:]
 ### TODO:
 #       fai il controllo duplicati sull'id 8 caratteri finali e non sull'intera url
 #       ______________ Implementa treads ______________

@@ -3,5 +3,5 @@
 *.csv
 *.json
 stupidSpider.py
-test
+test_*
 __*

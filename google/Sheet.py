@@ -42,6 +42,9 @@ class Spreadsheet():
 
         self.__sheet = service.spreadsheets()
 
+    def __str__(self):
+        return f"""<Spreadsheet Object>\n\t Connected to https://docs.google.com/spreadsheets/d/{self.__SAMPLE_SPREADSHEET_ID}/edit in Range {self.__SAMPLE_RANGE_NAME}"""
+
     def get_UUID(self) -> str:
         """
         Getter method to take identifier of the curren spreadsheet
