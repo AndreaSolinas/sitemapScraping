@@ -10,7 +10,7 @@ Queste informazioni vengono inserite tutte in un `pandas.DataFrame` e poi salvat
 ## Note:
 - cè un problema con l'eliminazione dei duplicati con la connessione del RDBMS (mysql):
 
-  in sostanza non elimina i duplicati dei dati, e il inserisce duplicati => rivedere la funzione: [`drop_duplicates_from_data_frames`](stupidSpider_1.py#L290-L300)
+  in sostanza non elimina i duplicati dei dati, e il inserisce duplicati => rivedere la funzione: [`drop_duplicates_from_data_frames`](stupidSpider_1.py#L298-L325)
 
 ## Implementazioni
 - Finire la classe `StupidSpider_1` con i metodi opportuni.
