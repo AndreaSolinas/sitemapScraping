@@ -3,7 +3,7 @@ from datetime import datetime
 import pandas
 
 from stupidSpider_1 import StupidSpider
-from google.Sheet import *
+from google_API import Spreadsheet
 
 if __name__ == '__main__':
     #
@@ -41,5 +41,6 @@ if __name__ == '__main__':
     # myspider.url = "https://www.ilrestodelcarlino.it/feedservice/sitemap/rdc/articles/2024/day/sitemap.xml"
     # myspider.execute()
     # myspider.commit()
-
-    print(Spreadsheet.path)
+    sheet = Spreadsheet()
+    sheet.set_UUID('1cpswx3UAJ4YC-zABh5VXoXx1xhGq17svI_InYxFQxlA').set_range('Class!A:C')
+    print(sheet.fetch())

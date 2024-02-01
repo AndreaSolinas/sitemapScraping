@@ -122,7 +122,7 @@ class StupidSpider:
         if self.__data_frame.empty:
 
             if isinstance(self.connection, Spreadsheet):
-                data = self.connection.get_data()
+                data = self.connection.fetch()
                 self.__data_frame = pandas.DataFrame(data[1:], columns=data[0])
             elif isinstance(self.connection, sqlalchemy.engine.base.Engine):
                 self.__data_frame =pandas.read_sql(con=self.connection, sql="SELECT * FROM publication").drop('id', axis='columns')
@@ -414,7 +414,7 @@ class StupidSpider:
         if isinstance(self.connection, sqlalchemy.engine.base.Engine):
             self.data.to_sql('publication', self.connection, if_exists='append', index=False)
         elif isinstance(self.connection, Spreadsheet):
-            self.connection.set_data(self.data.values.tolist())
+            self.connection.upload(self.data.values.tolist())
 
 ### TODO:
 #       fai il controllo duplicati sull'id 8 caratteri finali e non sull'intera url
