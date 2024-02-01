@@ -32,3 +32,15 @@ Queste informazioni vengono inserite tutte in un `pandas.DataFrame` e poi salvat
             return results
     ```
 - Fare il controllo delle url non sull'intera url ma sull'utlima parte
+- Creazione di un log ben stutturato classe `logging` ([vedi `@decorators`](https://www.programmareinpython.it/video-corso-python-intermedio/12-i-decoratori/))
+- Implementare con UN API slug per l'invio dei log di errore
+
+## References:
+- `Decorators`:
+  - https://www.programmareinpython.it/video-corso-python-intermedio/12-i-decoratori/
+  - https://www.geeksforgeeks.org/decorators-in-python/
+  - https://realpython.com/primer-on-python-decorators/
+- `Logging`:
+  - https://realpython.com/python-logging/
+  - https://www.geeksforgeeks.org/logging-in-python/
+  - https://docs.python.org/3/library/logging.html
