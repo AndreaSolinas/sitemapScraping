@@ -15,7 +15,7 @@ from bs4 import BeautifulSoup
 from dateutil.parser import parse
 from dateutil.tz import gettz
 
-from google.Sheet import Spreadsheet
+from google_API import Spreadsheet
 
 
 class StupidSpider:
@@ -66,7 +66,7 @@ class StupidSpider:
                  type: Literal['sitemap', 'rss-feed'] = 'xml-sitemap',
                  date_to_scrape: datetime = datetime.now(),
                  connection: str = None,
-                 range: str = None
+                 table_name: str = None
                  ) -> None:
         r"""
         Crawl a specified url of sitemap or rss-feed, take url, published date, parse url to take journal.
@@ -82,7 +82,7 @@ class StupidSpider:
             type(Literal['sitemap', 'rss-feed']): select type of document to parse
             date_to_scrape (datetime, optional): datetime to check pubdate. Defaults today
             connection (str, optional): connection type => see :func:`set_connection()`
-            range (str, optional): if connection is a :class:`Spreadsheet` object, range must be specified
+            table_name (str, optional): if connection is a :class:`Spreadsheet` object, table_name must be specified
         """
 
         self.local = local
@@ -93,7 +93,7 @@ class StupidSpider:
             self.date_time = date_to_scrape
 
         if connection:
-            self.set_connection(connection, range)
+            self.set_connection(connection, table_name)
 
     ############
     #  GETTER  #
@@ -119,8 +119,15 @@ class StupidSpider:
 
     @property
     def data(self) -> pandas.DataFrame:
-        return self.__data_frame
+        if self.__data_frame.empty:
 
+            if isinstance(self.connection, Spreadsheet):
+                data = self.connection.get_data()
+                self.__data_frame = pandas.DataFrame(data[1:], columns=data[0])
+            elif isinstance(self.connection, sqlalchemy.engine.base.Engine):
+                self.__data_frame =pandas.read_sql(con=self.connection, sql="SELECT * FROM publication").drop('id', axis='columns')
+
+        return self.__data_frame
 
     ############
     #  SETTER  #
@@ -215,14 +222,14 @@ class StupidSpider:
     #  METHOD  #
     ############
 
-    def set_connection(self, connection: str, range: str = None) -> None:
+    def set_connection(self, connection: str, table_name: str = None) -> object:
         r"""Create a connection to database and test if it works.
         Note:
             It can be connected to:
 
             - **RDBMS**: with a URI such as ``schmea://userName:password@host[:port]/databaseName``.
                 This will be a connection to :class:`sqlalchemy`
-            - **SHEET**: with **UUID** of the document and its **range**
+            - **SHEET**: with **UUID** of the document and its **table_name**
                 This will be a connection to :class:`Spreadsheet`
 
         Parameters:
@@ -231,17 +238,17 @@ class StupidSpider:
                 - **URI**: ``'schmea://userName:password@host[:port]/databaseName'``
                 - **UUID**: 'docs.google.com/spreadsheets/d/**<<UUID>>**/edit'
 
-            range (str, optional): Works only if the connection is a UUID Sheet.
+            table_name (str, optional): Works only if the connection is a UUID Sheet.
 
                 must be composed: ``<name>!COL[row]:COL[row]``
 
                 Ex:
 
-                >>> range = "sheet1!A2:Z5"
+                >>> table_name = "sheet1!A2:Z5"
 
                 **or**
 
-                >>> range = "sheet!A:K"
+                >>> table_name = "sheet!A:K"
         """
 
         if re.match(
@@ -249,11 +256,13 @@ class StupidSpider:
                 connection):
             self.__connection = sqlalchemy.create_engine(connection)
             self.__connection.connect()
-        elif range and re.match(r"[a-zA-Z0-9-_]+![A-Z]{1,3}\d*:[A-Z]{1,3}\d*", range):
-            self.__connection = Spreadsheet(connection, range)
+        elif table_name and re.match(r"[a-zA-Z0-9-_]+![A-Z]{1,3}\d*:[A-Z]{1,3}\d*", table_name):
+            self.__connection = Spreadsheet(connection, table_name)
             self.__connection.check_status()
         else:
             raise Exception('Connection error: DBMS or Spreadsheet Not found')
+
+        return self
 
     @staticmethod
     def requests_url(url, param: dict | None = None) -> requests.Response:
@@ -286,10 +295,14 @@ class StupidSpider:
         utc_time = my_date.astimezone(gettz('UTC+1')).strftime('%Y-%m-%d %H:%M:%S')
         return datetime.strptime(utc_time, '%Y-%m-%d %H:%M:%S')
 
+    ##TODO: Da rivedere! non funziona con la connessione a mysql, non elimina i duplicati prima di appenderlo
     @staticmethod
-    def drop_duplicates_from_data_frames(*data_frame: pandas.DataFrame, subset: list) -> pandas.DataFrame:
+    def drop_duplicates_from_data_frames(*data_frame: pandas.DataFrame, subset: list = None) -> pandas.DataFrame:
         r"""
         Clean the dataframe from the duplicate entities and return the cleanest dataframe possible.
+
+        Notes:
+            You **MUST** enter the scraped value first followed by others to eliminate the duplicate.
 
         Parameters:
             subset (list): The values that need to be checked to find duplicates
@@ -300,14 +313,14 @@ class StupidSpider:
         """
         data_frame_concatenated = concatenated_result = pandas.DataFrame()
 
-        for dataFrame in data_frame:
-            data_frame_concatenated = pandas.concat([data_frame_concatenated, dataFrame.drop_duplicates()])
+        for frame in data_frame:
+            data_frame_concatenated = pandas.concat([data_frame_concatenated, frame])
 
             concatenated_result = pandas.concat(
-                objs=[data_frame_concatenated, dataFrame],
+                objs=[data_frame_concatenated, frame],
                 ignore_index=True,
             )
-        concatenated_result.drop_duplicates(subset=subset, ignore_index=True, inplace=True, keep=False)
+        concatenated_result.drop_duplicates(subset=(subset or ['url']), ignore_index=True, inplace=True, keep=False)
         return concatenated_result
 
     @staticmethod
@@ -343,7 +356,7 @@ class StupidSpider:
                 case _:
                     result['editorial'] = 'web'
 
-            result['image'] = 1 if jsonData['socialImage'] and jsonData['socialImage']['baseUrl'] else 0
+            result['img'] = 1 if jsonData['socialImage'] and jsonData['socialImage']['baseUrl'] else 0
             if jsonData['body']:
                 result['body'] = len(jsonData['body'].split())
 
@@ -351,12 +364,12 @@ class StupidSpider:
 
             return result
 
-    def undermining(self) -> pandas.DataFrame:
+    def execute(self)->object:
         r"""
         """
         result: dict = {
             'editorial': None,
-            'image': None,
+            'img': None,
             'body': None
         }
         dataResult = pandas.DataFrame()
@@ -371,28 +384,37 @@ class StupidSpider:
             art_datetime = self.parse_datetime_UTC_rome(item.find(self.__content_type['date']).text)  # published date
 
             if art_datetime.date() == self.date_time.date():
-                url = item.find(self.__content_type['url']).text
 
-                if self.journal in self.__MONRIF:
-                    result = self.get_article_info(url)
+                try:
+                    url = item.find(self.__content_type['url']).text
 
-                series = {
-                    'journal': self.journal,
-                    'url': url,
-                    'datetime': str(art_datetime),
-                }
-                series.update(result)
-                dataResult = dataResult._append(series,ignore_index=True)
+                    if self.journal in self.__MONRIF:
+                        result = self.get_article_info(url)
 
-        self.__data_frame = dataResult
-        return dataResult
+                    series = {
+                        'journal': self.journal,
+                        'url': url,
+                        'datetime': str(art_datetime),
+                    }
+                    series.update(result)
+                    dataResult = dataResult._append(series, ignore_index=True)
 
-    def upload_data(self):
-        # Se la connessione è una connessione al database
-        if isinstance(self.connection, sqlalchemy.engine.base.Engine) and self.connection.connect():
-            print('sql')
+                except Exception as e:
+                    print(f"Exception caught: {e} in url: {url}")
+        data_from_database = self.data
+        self.__data_frame = self.drop_duplicates_from_data_frames(dataResult, data_from_database)
+        return self
+
+    def flush(self)-> None:
+        r"""
+        Commit data to dataframe:
+
+        The procedure adapts the sending of data per connection request and data will be appended to the dataset
+        """
+        if isinstance(self.connection, sqlalchemy.engine.base.Engine):
+            self.data.to_sql('publication', self.connection, if_exists='append', index=False)
         elif isinstance(self.connection, Spreadsheet):
-            print('popp')
+            self.connection.set_data(self.data.values.tolist())
 
 ### TODO:
 #       fai il controllo duplicati sull'id 8 caratteri finali e non sull'intera url

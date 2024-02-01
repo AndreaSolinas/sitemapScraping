@@ -8,9 +8,8 @@ from googleapiclient.discovery import build
 __ABS_PATH__ = os.path.dirname(os.path.abspath(__file__))
 
 
-# TODO: __ABS_PATH__ secondo me è sbagliata perchè se la cambi fa un casino:
-#   controlla se cambi path dove gesu ti mette il file token.json
 class Spreadsheet():
+    path = os.getcwd()
     __SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
     __SAMPLE_SPREADSHEET_ID: str = None
     __SAMPLE_RANGE_NAME: str = None
@@ -19,7 +18,7 @@ class Spreadsheet():
                  range: str | None = None,
                  credentials: str = f"{__ABS_PATH__}/credentials.json",
                  token: str = f"{__ABS_PATH__}/token.json"
-                 ):
+                 ) -> None:
         self.__SAMPLE_SPREADSHEET_ID = UUID
         self.__SAMPLE_RANGE_NAME = range
         self.creds = None
@@ -67,19 +66,21 @@ class Spreadsheet():
             raise NotSetException(
                 f'The variable range is not set \n Use the method set_range(range) or pass in the costructor argument to set your range')
 
-    def set_UUID(self, UUID: str) -> None:
+    def set_UUID(self, UUID: str) -> object:
         """Setter method to set identifier of the curren spreadsheet
         https://docs.google.com/spreadsheets/d/{UUID}/edit
         :param: UUID, the identifier of the spreadsheet
         """
         self.__SAMPLE_SPREADSHEET_ID = UUID
+        return self
 
-    def set_range(self, RANGE: str) -> None:
+    def set_range(self, RANGE: str) -> object:
         """
         Setter method to take sheet and columns
         :param: RANGE, sheet and range es: "sheet1!A2:Z"
         """
         self.__SAMPLE_RANGE_NAME = RANGE
+        return self
 
     def get_data(self, range: str = None) -> list:
         """
@@ -94,7 +95,7 @@ class Spreadsheet():
 
         return result.get("values", [])
 
-    def set_data(self, data: list) -> None:
+    def set_data(self, data: list) -> object:
         """
         set values into the cell
         :param: data, list of values to set
@@ -106,10 +107,11 @@ class Spreadsheet():
             valueInputOption="USER_ENTERED",
             body={"values": data}
         ).execute()
+        return self
 
-    def check_status(self):
+    def check_status(self) -> bool:
         if self.get_data('A1'):
-            return
+            return True
 
 
 class NotSetException(TypeError):
