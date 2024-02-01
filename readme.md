@@ -1,3 +1,4 @@
+versione:2
 # Python Classes to scraping journal
 tramite lo scraping dei siti web prendo infromazioni come:
 
@@ -5,6 +6,12 @@ tramite lo scraping dei siti web prendo infromazioni come:
 |---------|-----|------------------|--------|-----|------------|
 
 Queste informazioni vengono inserite tutte in un `pandas.DataFrame` e poi salvate su uno spreadsheet
+
+## Note:
+- cè un problema con l'eliminazione dei duplicati con la connessione del RDBMS (mysql):
+
+  in sostanza non elimina i duplicati dei dati, e il inserisce duplicati => rivedere la funzione: [`drop_duplicates_from_data_frames`](stupidSpider_1.py#L290-L300)
+
 ## Implementazioni
 - Finire la classe `StupidSpider_1` con i metodi opportuni.
 - Implementare il `threading` per le richieste dei singoli url. Esempio:
