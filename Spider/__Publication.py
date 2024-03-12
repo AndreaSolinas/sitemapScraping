@@ -14,9 +14,9 @@ from datetime import datetime
 from bs4 import BeautifulSoup
 from dateutil.parser import parse
 from dateutil.tz import gettz
-from google_API import Spreadsheet
+from Google_API import Spreadsheet
 
-class PublicationSpider:
+class Publication:
     r"""
     Crawl a specified url of sitemap or rss-feed, take url, published date, parse url to take journal and
     store it in a database (sheet, database)
@@ -60,9 +60,9 @@ class PublicationSpider:
     __data_frame: pandas.DataFrame = pandas.DataFrame()
 
     def __init__(self,
-                 sitemap_url: str,
                  connection: str,
                  table_name: str,
+                 sitemap_url: str = None,
                  local: str = None,
                  content_type: Literal['sitemap', 'rss-feed'] = 'xml-sitemap',
                  date_to_scrape: datetime = datetime.now(),
@@ -85,7 +85,8 @@ class PublicationSpider:
         """
 
         self.local = local
-        self.sitemap_url = sitemap_url
+        if sitemap_url:
+            self.sitemap_url = sitemap_url
         self.content_type = content_type
 
         if datetime:
@@ -275,7 +276,7 @@ class PublicationSpider:
         :return: Response of **GET** request
         """
         response = requests.get(url, param if param is not None else {
-            'User-Agent': random.choice(PublicationSpider.__USER_AGENT)})
+            'User-Agent': random.choice(Publication.__USER_AGENT)})
         if response.status_code != 200:
             request = cloudscraper.create_scraper(delay=2, browser="chrome")
             response = request.get(url)
@@ -323,7 +324,7 @@ class PublicationSpider:
 
     @staticmethod
     def __get_article_data(url: str) -> json:
-        response = PublicationSpider.requests_url(url, {'User-Agent': random.choice(PublicationSpider.__USER_AGENT)})
+        response = Publication.requests_url(url, {'User-Agent': random.choice(Publication.__USER_AGENT)})
 
         if response.status_code != 200:
             raise requests.HTTPError(f"The request was unsuccessful:\n {url} response with code {response.status_code}")
@@ -340,7 +341,7 @@ class PublicationSpider:
         :return: the Source of the news
         """
         result: dict = {}
-        jsonData = PublicationSpider.__get_article_data(url)
+        jsonData = Publication.__get_article_data(url)
         type = jsonData['__typename'] if jsonData['__typename'] is not None else ''
 
         if str.lower(type) == 'article':
@@ -368,9 +369,9 @@ class PublicationSpider:
 
     @staticmethod
     def crawler(url: str) -> bs4.BeautifulSoup:
-        requested: requests.Response = PublicationSpider.requests_url(url,
+        requested: requests.Response = Publication.requests_url(url,
                                                                       param={'User-Agent': random.choice(
-                                                                          PublicationSpider.__USER_AGENT)})
+                                                                          Publication.__USER_AGENT)})
         response = gzip.decompress(requested.content) if 'octet-stream' in requested.headers.get(
             'Content-Type') else requested.content
         return BeautifulSoup(response, 'xml')

@@ -4,5 +4,6 @@
 *.json
 stupidSpider.py
 test_*
+test*.py
 test/
 __py*
