@@ -1,7 +1,8 @@
-.env
+.env*
 .*/
 *.csv
 *.json
 stupidSpider.py
 test_*
-__*
+test/
+__py*

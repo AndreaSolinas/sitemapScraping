@@ -15,6 +15,7 @@ from bs4 import BeautifulSoup
 from dateutil.parser import parse
 from dateutil.tz import gettz
 from google_API import Spreadsheet
+
 class PublicationSpider:
     r"""
     Crawl a specified url of sitemap or rss-feed, take url, published date, parse url to take journal and
@@ -153,7 +154,8 @@ class PublicationSpider:
         if validators.url(url):
             self.__sitemap_url = url
             raw_journal = re.sub(r'^http(s)?://\w+\.(?P<journal>\w+)\.(.*)', r'\g<journal>', url)
-            self.__journal = (self.local + "-" if self.local and (raw_journal not in self.__MONRIF or  re.match('https:\/\/[^w]*\.', url)) else "") + raw_journal
+            self.__journal = (self.local + "-" if self.local and (
+                    raw_journal not in self.__MONRIF or re.match('https:\/\/[^w]*\.', url)) else "") + raw_journal
         else:
             raise TypeError(f"{url} is not a valid url")
 
@@ -367,8 +369,8 @@ class PublicationSpider:
     @staticmethod
     def crawler(url: str) -> bs4.BeautifulSoup:
         requested: requests.Response = PublicationSpider.requests_url(url,
-                                                                 param={'User-Agent': random.choice(
-                                                                     PublicationSpider.__USER_AGENT)})
+                                                                      param={'User-Agent': random.choice(
+                                                                          PublicationSpider.__USER_AGENT)})
         response = gzip.decompress(requested.content) if 'octet-stream' in requested.headers.get(
             'Content-Type') else requested.content
         return BeautifulSoup(response, 'xml')
@@ -379,7 +381,9 @@ class PublicationSpider:
             data = self.connection_obj.fetch()
             return pandas.DataFrame(data[1:], columns=data[0])
         elif isinstance(self.connection_obj, sqlalchemy.engine.base.Engine):
-            return pandas.read_sql(con=self.connection_obj, sql=f"SELECT * FROM {self.table_name} WHERE DATE(datetime) = '{self.date_time.date()}'").drop('id', axis='columns')
+            return pandas.read_sql(con=self.connection_obj,
+                                   sql=f"SELECT * FROM {self.table_name} WHERE DATE(datetime) = '{self.date_time.date()}'").drop(
+                'id', axis='columns')
 
     @__timing
     def execute(self) -> object:
@@ -417,7 +421,8 @@ class PublicationSpider:
                 except Exception as e:
                     print(f"Exception caught: '{e}' in url: {url}")
         data_from_database = self.get_data_connection()
-        self.__data_frame = self.drop_duplicates_from_data_frames(data_result, data_from_database,self.__data_frame,  subset=['url'])
+        self.__data_frame = self.drop_duplicates_from_data_frames(data_result, data_from_database, self.__data_frame,
+                                                                  subset=['url'])
         return self
 
     def flush(self) -> None:
@@ -431,4 +436,3 @@ class PublicationSpider:
             self.data.to_sql(self.table_name, self.connection, if_exists='append', index=False)
         elif isinstance(self.connection_obj, Spreadsheet):
             self.connection_obj.upload(self.data.values.tolist())
-
