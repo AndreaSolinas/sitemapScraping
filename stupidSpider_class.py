@@ -5,20 +5,17 @@ import requests, \
     random, \
     re, \
     pandas, \
-    validators
+    bs4, \
+    validators, \
+    sqlalchemy
 
 from typing import Literal
-from datetime import datetime, date
-
-import sqlalchemy
+from datetime import datetime
 from bs4 import BeautifulSoup
 from dateutil.parser import parse
 from dateutil.tz import gettz
-
 from google_API import Spreadsheet
-
-
-class StupidSpider:
+class PublicationSpider:
     r"""
     Crawl a specified url of sitemap or rss-feed, take url, published date, parse url to take journal and
     store it in a database (sheet, database)
@@ -61,12 +58,13 @@ class StupidSpider:
 
     __data_frame: pandas.DataFrame = pandas.DataFrame()
 
-    def __init__(self, url: str,
+    def __init__(self,
+                 sitemap_url: str,
+                 connection: str,
+                 table_name: str,
                  local: str = None,
-                 type: Literal['sitemap', 'rss-feed'] = 'xml-sitemap',
+                 content_type: Literal['sitemap', 'rss-feed'] = 'xml-sitemap',
                  date_to_scrape: datetime = datetime.now(),
-                 connection: str = None,
-                 table_name: str = None
                  ) -> None:
         r"""
         Crawl a specified url of sitemap or rss-feed, take url, published date, parse url to take journal.
@@ -86,21 +84,22 @@ class StupidSpider:
         """
 
         self.local = local
-        self.url = url
-        self.content_type = type
+        self.sitemap_url = sitemap_url
+        self.content_type = content_type
 
         if datetime:
             self.date_time = date_to_scrape
 
-        if connection:
-            self.set_connection(connection, table_name)
+        self.table_name = table_name
+        self.connection = connection
+        self.__set_connection(connection, table_name)
 
     ############
     #  GETTER  #
     ############
     @property
-    def url(self) -> str:
-        return self.__url
+    def sitemap_url(self) -> str:
+        return self.__sitemap_url
 
     @property
     def journal(self) -> str:
@@ -114,27 +113,19 @@ class StupidSpider:
         raise AttributeError(f"property content_type object has no getter, write-only attribute")
 
     @property
-    def connection(self) -> sqlalchemy.engine.base.Engine | Spreadsheet:
+    def connection_obj(self) -> sqlalchemy.engine.base.Engine | Spreadsheet:
         return self.__connection
 
     @property
     def data(self) -> pandas.DataFrame:
-        if self.__data_frame.empty:
-
-            if isinstance(self.connection, Spreadsheet):
-                data = self.connection.fetch()
-                self.__data_frame = pandas.DataFrame(data[1:], columns=data[0])
-            elif isinstance(self.connection, sqlalchemy.engine.base.Engine):
-                self.__data_frame =pandas.read_sql(con=self.connection, sql="SELECT * FROM publication").drop('id', axis='columns')
-
         return self.__data_frame
 
     ############
     #  SETTER  #
     ############
 
-    @url.setter
-    def url(self, url: str) -> None:
+    @sitemap_url.setter
+    def sitemap_url(self, url: str) -> None:
         r"""
         Setter method to validate the url attribute and also set the ``journal`` attribute.
 
@@ -142,13 +133,13 @@ class StupidSpider:
         location at the beginning, if it exists.
 
         Examples:
-            >>> istance.url = 'https://www.example.com/sitemap.xml'
+            >>> istance.sitemap_url = 'https://www.example.com/sitemap.xml'
             >>> istance.local = 'Honolulu'
             >>> istance.journal
             Honolulu-example
 
         Parameters:
-            url (str): Valid URL of sitemap or rss-feed
+            sitemap_url (str): Valid URL of sitemap or rss-feed
 
                 es => ``https://example.com/sitemap.xml`` or ``https://example.com/feed.rss``
 
@@ -160,9 +151,9 @@ class StupidSpider:
         """
 
         if validators.url(url):
-            self.__url = url
-            self.__journal = (self.local + '-' if self.local else '') + re.sub(
-                r'^http(s)?://\w+\.(?P<journal>\w+)\.(.*)', r'\g<journal>', url)
+            self.__sitemap_url = url
+            raw_journal = re.sub(r'^http(s)?://\w+\.(?P<journal>\w+)\.(.*)', r'\g<journal>', url)
+            self.__journal = (self.local + "-" if self.local and (raw_journal not in self.__MONRIF or  re.match('https:\/\/[^w]*\.', url)) else "") + raw_journal
         else:
             raise TypeError(f"{url} is not a valid url")
 
@@ -221,8 +212,16 @@ class StupidSpider:
     ############
     #  METHOD  #
     ############
+    @staticmethod
+    def __timing(method):
+        def wrapper(self):
+            timing = datetime.now()
+            method(self)
+            print(f"{self.journal} ha impiegato {(datetime.now() - timing)}")
 
-    def set_connection(self, connection: str, table_name: str = None) -> object:
+        return wrapper
+
+    def __set_connection(self, connection: str, table_name: str) -> object:
         r"""Create a connection to database and test if it works.
         Note:
             It can be connected to:
@@ -256,7 +255,7 @@ class StupidSpider:
                 connection):
             self.__connection = sqlalchemy.create_engine(connection)
             self.__connection.connect()
-        elif table_name and re.match(r"[a-zA-Z0-9-_]+![A-Z]{1,3}\d*:[A-Z]{1,3}\d*", table_name):
+        elif re.match(r"[a-zA-Z0-9-_]+![A-Z]{1,3}\d*:[A-Z]{1,3}\d*", table_name):
             self.__connection = Spreadsheet(connection, table_name)
             self.__connection.check_status()
         else:
@@ -265,7 +264,7 @@ class StupidSpider:
         return self
 
     @staticmethod
-    def requests_url(url, param: dict | None = None) -> requests.Response:
+    def requests_url(url: str, param: dict = None) -> requests.Response:
         r"""
         Check response of the first call and if it is blocked by cloudflare, try with another request
         :params:
@@ -274,7 +273,7 @@ class StupidSpider:
         :return: Response of **GET** request
         """
         response = requests.get(url, param if param is not None else {
-            'User-Agent': random.choice(StupidSpider.__USER_AGENT)})
+            'User-Agent': random.choice(PublicationSpider.__USER_AGENT)})
         if response.status_code != 200:
             request = cloudscraper.create_scraper(delay=2, browser="chrome")
             response = request.get(url)
@@ -295,9 +294,8 @@ class StupidSpider:
         utc_time = my_date.astimezone(gettz('UTC+1')).strftime('%Y-%m-%d %H:%M:%S')
         return datetime.strptime(utc_time, '%Y-%m-%d %H:%M:%S')
 
-    ##TODO: Da rivedere! non funziona con la connessione a mysql, non elimina i duplicati prima di appenderlo
     @staticmethod
-    def drop_duplicates_from_data_frames(*data_frame: pandas.DataFrame, subset: list = None) -> pandas.DataFrame:
+    def drop_duplicates_from_data_frames(*dataFrames: pandas.DataFrame, subset: list) -> pandas.DataFrame:
         r"""
         Clean the dataframe from the duplicate entities and return the cleanest dataframe possible.
 
@@ -311,21 +309,19 @@ class StupidSpider:
         Returns:
             (pandas.DataFrame): One dataframe with all data and cleaned of all duplicate values
         """
-        data_frame_concatenated = concatenated_result = pandas.DataFrame()
+        concatDataframe = concatRes = pandas.DataFrame()
+        for dataFrame in dataFrames:
+            concatDataframe = pandas.concat([concatDataframe, dataFrame.drop_duplicates()])
 
-        for frame in data_frame:
-            data_frame_concatenated = pandas.concat([data_frame_concatenated, frame])
-
-            concatenated_result = pandas.concat(
-                objs=[data_frame_concatenated, frame],
+            concatRes = pandas.concat(
+                objs=[concatDataframe, dataFrame],
                 ignore_index=True,
             )
-        concatenated_result.drop_duplicates(subset=(subset or ['url']), ignore_index=True, inplace=True, keep=False)
-        return concatenated_result
+        return concatRes.drop_duplicates(subset=subset, ignore_index=True, keep=False)
 
     @staticmethod
     def __get_article_data(url: str) -> json:
-        response = StupidSpider.requests_url(url, {'User-Agent': random.choice(StupidSpider.__USER_AGENT)})
+        response = PublicationSpider.requests_url(url, {'User-Agent': random.choice(PublicationSpider.__USER_AGENT)})
 
         if response.status_code != 200:
             raise requests.HTTPError(f"The request was unsuccessful:\n {url} response with code {response.status_code}")
@@ -342,7 +338,7 @@ class StupidSpider:
         :return: the Source of the news
         """
         result: dict = {}
-        jsonData = StupidSpider.__get_article_data(url)
+        jsonData = PublicationSpider.__get_article_data(url)
         type = jsonData['__typename'] if jsonData['__typename'] is not None else ''
 
         if str.lower(type) == 'article':
@@ -353,6 +349,10 @@ class StupidSpider:
                     result['editorial'] = 'webcarta'
                 case 'aicarta':
                     result['editorial'] = 'carta-opti'
+                case 'aicarta-titolo':
+                    result['editorial'] = 'carta-opti-title'
+                case 'aicarta-titolo-desc':
+                    result['editorial'] = 'carta-opti-title-som'
                 case _:
                     result['editorial'] = 'web'
 
@@ -364,22 +364,37 @@ class StupidSpider:
 
             return result
 
-    def execute(self)->object:
-        r"""
+    @staticmethod
+    def crawler(url: str) -> bs4.BeautifulSoup:
+        requested: requests.Response = PublicationSpider.requests_url(url,
+                                                                 param={'User-Agent': random.choice(
+                                                                     PublicationSpider.__USER_AGENT)})
+        response = gzip.decompress(requested.content) if 'octet-stream' in requested.headers.get(
+            'Content-Type') else requested.content
+        return BeautifulSoup(response, 'xml')
+
+    def get_data_connection(self) -> pandas.DataFrame:
+        self.__set_connection(self.connection, self.table_name)
+        if isinstance(self.connection_obj, Spreadsheet):
+            data = self.connection_obj.fetch()
+            return pandas.DataFrame(data[1:], columns=data[0])
+        elif isinstance(self.connection_obj, sqlalchemy.engine.base.Engine):
+            return pandas.read_sql(con=self.connection_obj, sql=f"SELECT * FROM {self.table_name} WHERE DATE(datetime) = '{self.date_time.date()}'").drop('id', axis='columns')
+
+    @__timing
+    def execute(self) -> object:
+        r""" Docstring
         """
         result: dict = {
             'editorial': None,
             'img': None,
             'body': None
         }
-        dataResult = pandas.DataFrame()
-        requested: requests.Response = StupidSpider.requests_url(self.url,
-                                                                 param={'User-Agent': random.choice(self.__USER_AGENT)})
-        response = gzip.decompress(requested.content) if 'octet-stream' in requested.headers.get(
-            'Content-Type') else requested.content
-        soup = BeautifulSoup(response, 'xml')
+        data_result = pandas.DataFrame()
 
-        for item in soup.find_all(self.__content_type['group']):  ## get url from sitemap
+        crawler = self.crawler(self.sitemap_url)
+
+        for item in crawler.find_all(self.__content_type['group']):  ## get url from sitemap
 
             art_datetime = self.parse_datetime_UTC_rome(item.find(self.__content_type['date']).text)  # published date
 
@@ -397,25 +412,23 @@ class StupidSpider:
                         'datetime': str(art_datetime),
                     }
                     series.update(result)
-                    dataResult = dataResult._append(series, ignore_index=True)
+                    data_result = data_result._append(series, ignore_index=True)
 
                 except Exception as e:
-                    print(f"Exception caught: {e} in url: {url}")
-        data_from_database = self.data
-        self.__data_frame = self.drop_duplicates_from_data_frames(dataResult, data_from_database)
+                    print(f"Exception caught: '{e}' in url: {url}")
+        data_from_database = self.get_data_connection()
+        self.__data_frame = self.drop_duplicates_from_data_frames(data_result, data_from_database,self.__data_frame,  subset=['url'])
         return self
 
-    def flush(self)-> None:
+    def flush(self) -> None:
         r"""
         Commit data to dataframe:
 
         The procedure adapts the sending of data per connection request and data will be appended to the dataset
         """
-        if isinstance(self.connection, sqlalchemy.engine.base.Engine):
-            self.data.to_sql('publication', self.connection, if_exists='append', index=False)
-        elif isinstance(self.connection, Spreadsheet):
-            self.connection.upload(self.data.values.tolist())
+        self.__set_connection(self.connection, self.table_name)
+        if isinstance(self.connection_obj, sqlalchemy.engine.base.Engine):
+            self.data.to_sql(self.table_name, self.connection, if_exists='append', index=False)
+        elif isinstance(self.connection_obj, Spreadsheet):
+            self.connection_obj.upload(self.data.values.tolist())
 
-### TODO:
-#       fai il controllo duplicati sull'id 8 caratteri finali e non sull'intera url
-#       ______________ Implementa treads ______________

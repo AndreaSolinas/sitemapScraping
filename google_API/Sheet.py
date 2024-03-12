@@ -7,11 +7,7 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
-
 __ABS_PATH__ = os.getcwd()
-
-##TODO: __ABS_PATH__ is not work on crontab because the script run in /home/user/ not in the project folder and it reurn
-#   /home/user/ else /filepath/
 
 class Spreadsheet():
     r"""
