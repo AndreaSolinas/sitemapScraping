@@ -422,7 +422,7 @@ class Publication:
                 except Exception as e:
                     print(f"Exception caught: '{e}' in url: {url}")
         data_from_database = self.get_data_connection()
-        self.__data_frame = self.drop_duplicates_from_data_frames(data_result, data_from_database, self.__data_frame,
+        self.__data_frame = self.drop_duplicates_from_data_frames(data_result, self.__data_frame, data_from_database,
                                                                   subset=['url'])
         return self
 

@@ -38,7 +38,7 @@ if "__main__" == __name__:
     }
 
     spi = Spider.Publication(
-                        connection="mysql+pymysql://py_user:1@127.0.0.1:3306/",
+                        connection="mysql+pymysql://py_user:1@127.0.0.1:3306/py_prova",
                         table_name="prova_drop2",
                         )
 
@@ -49,6 +49,5 @@ if "__main__" == __name__:
             if 'type' in sitemap:
                 spi.content_type = sitemap['type']
             spi.execute()
-
-    print(spi.data)
+    spi.flush()
 
