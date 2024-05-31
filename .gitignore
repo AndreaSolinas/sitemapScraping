@@ -1,0 +1,10 @@
+.env*
+.*/
+*.csv
+*.json
+stupidSpider.py
+test*
+test*.py
+test/
+__py*
+.idea
