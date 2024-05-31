@@ -408,7 +408,7 @@ class Publication:
                 try:
                     url = item.find(self.__content_type['url']).text
 
-                    if self.journal in self.__MONRIF:
+                    if re.sub('.+-', '', self.journal) in self.__MONRIF:
                         result = self.get_article_info(url)
 
                     series = {

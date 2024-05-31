@@ -1,53 +1,40 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
-import Spider
+from sqlalchemy import create_engine, engine
 
-if "__main__" == __name__:
-    sitemaps = {
-        "bologna": [
-            {'url': 'https://www.bolognatoday.it/sitemaps/sitemap_news_0.xml.gz'},
-            {'url': 'https://bologna.repubblica.it/sitemap-n.xml', 'local': 'bologna'},
-            {'url': 'https://www.corriere.it/dynamic-sitemap/sitemap-last-100/Bologna.xml', 'local': 'bologna'},
-            {'url': 'https://www.ilrestodelcarlino.it/feedservice/sitemap/rdc/articles/2024/day/sitemap.xml'},
-            # 579
-        ],
-        "milano": [
-            {'url': 'https://www.milanotoday.it/sitemaps/sitemap_news_0.xml.gz'},
-            {'url': 'https://milano.repubblica.it/sitemap-n.xml', 'local': 'milano'},
-            {'url': 'https://www.corriere.it/dynamic-sitemap/sitemap-last-100/Milano.xml', 'local': 'milano'},
-            {'url': 'https://www.ilgiorno.it/feedservice/sitemap/gio/articles/2024/day/sitemap.xml'},
-        ],
-        "firenze": [
-            {'url': 'https://www.firenzetoday.it/sitemaps/sitemap_news_0.xml.gz'},
-            {'url': 'https://firenze.repubblica.it/sitemap-n.xml', 'local': 'firenze'},
-            {'url': 'https://www.corriere.it/dynamic-sitemap/sitemap-last-100/Firenze.xml', 'local': 'firenze'},
-            {'url': 'https://www.lanazione.it/feedservice/sitemap/lan/articles/2024/day/sitemap.xml'},
-        ],
-        "nazionali": [
-            {'url': 'https://www.fanpage.it/feed/', 'type': 'rss-feed'},
-            {'url': 'https://www.ilmessaggero.it/?sez=XML&p=MapNews'},
-            {'url': 'https://www.repubblica.it/sitemap-n.xml'},
-            {'url': 'https://www.tgcom24.mediaset.it/sitemap_news.xml'},
-            {'url': 'https://www.lastampa.it/sitemap-n.xml'},  # stampa
-            {'url': f'https://www.corriere.it/rss/sitemaps/2024/sitemap_{datetime.now().month:>02}_{datetime.now().day:>02}_items.xml'},
-            {'url': 'https://www.quotidiano.net/feedservice/sitemap/qn/articles/2024/day/sitemap.xml'},
-        ],
-        "sport": [
-            {'url': 'https://sport.quotidiano.net/feedservice/sitemap/qs/articles/2024/day/sitemap.xml'}
-        ]
-    }
+import Spider, pandas, re
+
+
+def get_sitemap(engine: engine, table_name: str ):
+    parameter = pandas.read_sql(
+        sql=f"SELECT url, local, type "
+            f"FROM {table_name} "
+            f"WHERE deleted_at IS NULL AND deleted_by_id IS NULL",
+        con=engine
+    )
+
+    for index, row in parameter.iterrows():
+        parameter.loc[index, 'url'] = re.sub(r'{_YEAR_}', f"{datetime.now().year}", row["url"])
+        parameter.loc[index, 'url'] = re.sub(r'{_MONTH_}', f"{datetime.now().month:>02}", row["url"])
+        parameter.loc[index, 'url'] = re.sub(r'{_DAY_}', f"{datetime.now().day:>02}", row["url"])
+
+    return parameter
+
+
+if __name__ == "__main__":
 
     spi = Spider.Publication(
-                        connection="mysql+pymysql://py_user:1@127.0.0.1:3306/py_prova",
-                        table_name="prova_drop2",
-                        )
+        connection="mysql+pymysql://py_admin:Poligrafici1@127.0.0.1:3306/py_scrape",
+        table_name="publication",
+    )
 
-    for location, local_sitemaps in sitemaps.items():
-        spi.local = location
-        for sitemap in local_sitemaps:
-            spi.sitemap_url = sitemap['url']
-            if 'type' in sitemap:
-                spi.content_type = sitemap['type']
-            spi.execute()
+    sitemaps = get_sitemap(spi.connection_obj, 'publication__param')
+    print(f"\nstart at: {datetime.now()}")
+    for index, row in sitemaps.iterrows():
+        spi.local = row['local']
+        spi.sitemap_url = row['url']
+
+        spi.content_type = row['type'] if row['type'] is not None else "xml-sitemap"
+        spi.execute()
+    print(f"Flush {len(spi.data)} data in '{spi.table_name}'")
     spi.flush()
-

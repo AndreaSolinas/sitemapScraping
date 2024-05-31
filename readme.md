@@ -1,4 +1,5 @@
-versione:2
+![Version](https://img.shields.io/badge/version-1.0.0-blue?style=for-the-badge)
+![License](https://img.shields.io/badge/license-Proprietary-orange?style=for-the-badge)
 # Python Classes to scraping journal
 tramite lo scraping dei siti web prendo infromazioni come:
 
