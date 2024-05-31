@@ -1,5 +1,5 @@
 import logging
-from app.Settings import *
+from app.Parser import YamlParser, EnvironmentParser
 from pathlib import Path
 
 
@@ -8,7 +8,7 @@ def __get_project_root() -> str:
 
 
 def __init_logger() -> logging.Logger:
-    logger = logging.getLogger('Log_App')
+    logger = logging.getLogger('App Logger')
 
     if env.DEBUG.lower() in ("true", "1"):
         logger.setLevel(logging.DEBUG)
@@ -17,7 +17,7 @@ def __init_logger() -> logging.Logger:
 
     stream_handler = logging.StreamHandler()
 
-    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s ::\n%(message)s (%(filename)s:%(lineno)d)")
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s ::\n%(message)s\n(%(filename)s file, row: %(lineno)d)")
 
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
@@ -27,8 +27,8 @@ def __init_logger() -> logging.Logger:
 __BASE_DIR__ = __get_project_root()
 
 env = EnvironmentParser(__BASE_DIR__ + "/.env")
-yaml = YamlParser(__BASE_DIR__ + "/config/")
+config = YamlParser(__BASE_DIR__ + "/config/")
 log = __init_logger()
 
 # Export only necessary items
-__all__ = ["__BASE_DIR__", "env", "yaml", "log"]
+__all__ = ["__BASE_DIR__", "env", "config", "log"]
