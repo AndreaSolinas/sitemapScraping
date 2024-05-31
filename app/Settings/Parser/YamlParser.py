@@ -1,8 +1,8 @@
 import os, yaml
 from typing import Self
 
-class YamlParser:
 
+class YamlParser:
     __yaml_files: list = []
     __config: dict = {}
 
@@ -10,7 +10,7 @@ class YamlParser:
         self.path = path
         self.set_yaml_file_to_load(self.path)
 
-    def set_yaml_file_to_load(self, path:str) -> Self:
+    def set_yaml_file_to_load(self, path: str) -> Self:
         if os.path.isdir(path):
             for element in os.listdir(path):
                 full_path = os.path.join(path, element)
@@ -38,4 +38,5 @@ class YamlParser:
         if attribute in self.__config:
             return self.__config[attribute]
         else:
-            raise AttributeError('The attribute “%s” does not exist in any .yaml subfile in the “%s” directory' % (attribute, self.path))
+            raise AttributeError(
+                'The attribute “%s” does not exist in any .yaml subfile in the “%s” directory' % (attribute, self.path))

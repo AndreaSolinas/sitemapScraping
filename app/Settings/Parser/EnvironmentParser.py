@@ -1,15 +1,15 @@
 import dotenv
 
 
-class EnvironmentParser(object):
+class EnvironmentParser:
 
     def __init__(self, file: str = '.env') -> None:
         self.__file_env = file
         self.__raw_env = dotenv.dotenv_values(file)
 
     def get_env(self, key) -> str:
-        for k, value in self.__raw_env.items():
-            if k == key:
+        for index, value in self.__raw_env.items():
+            if index == key:
                 return value
 
     def __getattr__(self, attribute):

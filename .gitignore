@@ -1,4 +1,5 @@
 .env*
+.env
 .*/
 *.csv
 *.json
@@ -7,4 +8,4 @@ test*
 test*.py
 test/
 __py*
-.idea
+.idea/
