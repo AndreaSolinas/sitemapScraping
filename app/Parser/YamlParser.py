@@ -2,7 +2,15 @@ import os, yaml
 from typing import Self
 
 
-class YamlParser:
+class _DictAsAttribute(dict):
+    def __getattr__(self, name):
+        value = self[name]
+        if isinstance(value, dict):
+            value = _DictAsAttribute(value)
+        return value
+
+
+class YamlParser():
     __yaml_files: list = []
     __config: dict = {}
 
@@ -16,7 +24,7 @@ class YamlParser:
                 full_path = os.path.join(path, element)
                 if os.path.isdir(full_path):
                     self.__load_files(full_path)
-                if full_path.endswith(".yaml"):
+                if full_path.endswith(".yaml") and "test" not in element:
                     self.__yaml_files.append(full_path)
 
         elif os.path.isfile(path) and path.endswith(".yaml"):
@@ -36,7 +44,7 @@ class YamlParser:
 
     def __getattr__(self, attribute):
         if attribute in self.__config:
-            return self.__config[attribute]
+            return _DictAsAttribute(self.__config[attribute])
         else:
             raise AttributeError(
                 'The attribute “%s” does not exist in any .yaml subfile in the “%s” directory' % (attribute, self.path))

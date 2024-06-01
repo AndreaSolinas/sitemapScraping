@@ -27,8 +27,8 @@ def __init_logger() -> logging.Logger:
 __BASE_DIR__ = __get_project_root()
 
 env = EnvironmentParser(__BASE_DIR__ + "/.env")
-config = YamlParser(__BASE_DIR__ + "/config/")
+yaml = YamlParser(__BASE_DIR__ + "/config/")
 log = __init_logger()
 
 # Export only necessary items
-__all__ = ["__BASE_DIR__", "env", "config", "log"]
+__all__ = ["__BASE_DIR__", "env", "yaml", "log"]
