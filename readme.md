@@ -16,4 +16,4 @@ Furthermore, in this version, the parameterization of configurations is to be us
 > of development.
 
 > [!CAUTION]
-> Negative potential consequences of an action.
+> This code is potentially harmful, scraping is not always a legal activity, use with care.
