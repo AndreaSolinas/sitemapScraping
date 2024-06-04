@@ -10,8 +10,16 @@ from .Entity import __Readonly as Readonly
 
 class EntityManager(Session):
     def __init__(self) -> None:
-        engine = create_engine(env.DATABASE_URL, echo=bool(env.DEBUG.lower() in ("true", "1")))
+        engine = create_engine(self.__find_engine(), echo=env.DEBUG)
         super().__init__(engine)
+
+    @staticmethod
+    def __find_engine():
+        if hasattr(env, 'DATABASE_URL'):
+            return env.DATABASE_URL
+        else:
+            raise ODBCException("ODBC Url Not Found. Please, set the DATABASE_URL environment variable. with ODBC url.\n"
+                                "Ex.\n\t{driver}://{username}:{password}@{host}[:{port}]/{db_name}")
 
     def insert(self, *entities: Entity) -> Self:
         for entity in entities:
@@ -21,8 +29,8 @@ class EntityManager(Session):
         super().flush()
         return self
 
-    def select(self,*entities,**knowargs):
-        return super().query(*entities,**knowargs)
+    def select(self, *entities, **knowargs):
+        return super().query(*entities, **knowargs)
 
     def commit(self):
         try:
@@ -35,8 +43,8 @@ class EntityManager(Session):
         super().rollback()
 
     def __del__(self):
-        super().flush()
-        super().close()
+        if hasattr(self, '_flushing'):
+            super().close()
         log.debug('deleted object')
 
     def __enter__(self):

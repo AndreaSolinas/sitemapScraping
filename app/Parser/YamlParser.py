@@ -1,13 +1,7 @@
+import logging
 import os, yaml
+import re
 from typing import Self
-
-
-class _DictAsAttribute(dict):
-    def __getattr__(self, name):
-        value = self[name]
-        if isinstance(value, dict):
-            value = _DictAsAttribute(value)
-        return value
 
 
 class YamlParser():
@@ -16,7 +10,7 @@ class YamlParser():
 
     def __init__(self, path: str = 'config/'):
         self.path = path
-        self.set_yaml_file_to_load(self.path)
+        self.set_yaml_file_to_load(self.path).__set_yaml_config()
 
     def set_yaml_file_to_load(self, path: str) -> Self:
         if os.path.isdir(path):
@@ -29,14 +23,14 @@ class YamlParser():
 
         elif os.path.isfile(path) and path.endswith(".yaml"):
             self.__yaml_files.append(path)
-
-        self.__set_yaml_config()
         return self
 
     def __set_yaml_config(self) -> Self:
+
         for yaml_file in self.__yaml_files:
+            name = re.sub(r'.+/(.*)\.yaml', r'\1', yaml_file)
             with open(yaml_file, 'r') as stream:
-                self.__config.update(yaml.safe_load(stream))
+                self.__config[name] = yaml.safe_load(stream)
         return self
 
     def __str__(self):
@@ -44,7 +38,7 @@ class YamlParser():
 
     def __getattr__(self, attribute):
         if attribute in self.__config:
-            return _DictAsAttribute(self.__config[attribute])
+            return self.__config[attribute]
         else:
-            raise AttributeError(
-                'The attribute “%s” does not exist in any .yaml subfile in the “%s” directory' % (attribute, self.path))
+            raise FileNotFoundError(
+                'The file "%s" not found in %s, and the property it can not be loaded' % (attribute, self.path))

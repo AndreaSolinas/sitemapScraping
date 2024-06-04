@@ -1,6 +1,6 @@
 ![Version](https://img.shields.io/badge/version-2.0.0-blue)
 ![License](https://img.shields.io/badge/license-Proprietary-orange)
-![Release](https://img.shields.io/badge/Release-Pre_alpha-brown)
+![Release](https://img.shields.io/badge/Release-Pre_alpha_v0.1-brown)
 ![Bild](https://img.shields.io/badge/Production_Build-v1.0.0-darkgreen)
 
 # Scraper for publication control and SEO elements
@@ -16,4 +16,6 @@ Furthermore, in this version, the parameterization of configurations is to be us
 > of development.
 
 > [!CAUTION]
-> This code is potentially harmful, scraping is not always a legal activity, use with care.
+> web scraping is not always a legal activity. 
+> Even if this information is public and can therefore be accessed by everyone, 
+> this project is still for personal use or with the approval of the site to be scraped.

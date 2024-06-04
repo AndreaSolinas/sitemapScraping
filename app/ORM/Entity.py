@@ -1,3 +1,8 @@
+import urllib.parse
+
+import validators
+
+from app.utils import *
 from datetime import datetime
 import sqlalchemy
 from sqlalchemy import event
@@ -15,7 +20,7 @@ class __Base(DeclarativeBase):
 
 class __Readonly(DeclarativeBase):
     def __init__(self):
-        super(DeclarativeBase,self).__init__()
+        super(DeclarativeBase, self).__init__()
 
         event.listen(self, 'before_insert', self.__raise_readonly_exc())
         event.listen(self, 'before_update', self.__raise_readonly_exc())
@@ -41,8 +46,10 @@ class Url(__Base):
 
 class Sitemap(__Readonly):
     __tablename__ = "publication__param"
+
     id: Mapped[int] = mapped_column(sqlalchemy.BIGINT, primary_key=True)
-    url: Mapped[str] = mapped_column(sqlalchemy.String)
+
+    __url: Mapped[str] = mapped_column(sqlalchemy.String, name="url")
     local: Mapped[str] = mapped_column(sqlalchemy.String)
     type: Mapped[str] = mapped_column(sqlalchemy.String, default='xml-sitemap')
     created_by_id: Mapped[int] = mapped_column(sqlalchemy.BIGINT)
@@ -51,6 +58,25 @@ class Sitemap(__Readonly):
     created_at: Mapped[datetime] = mapped_column(sqlalchemy.DateTime(timezone=True), default=datetime.now())
     updated_at: Mapped[datetime] = mapped_column(sqlalchemy.DateTime(timezone=True), default=datetime.now())
     deleted_at: Mapped[datetime] = mapped_column(sqlalchemy.DateTime(timezone=True), default=None, nullable=True)
+
+    __placeholder_date = yaml_config.settings["placeholder"]
+
+    @property
+    def url(self):
+
+        if "current_year" in self.__placeholder_date:
+            self.__url = self.__url.replace(self.__placeholder_date["current_year"], str(datetime.today().year))
+        if "current_month" in self.__placeholder_date:
+            self.__url = self.__url.replace(self.__placeholder_date["current_month"], str(datetime.today().month))
+        if "current_day" in self.__placeholder_date:
+            self.__url = self.__url.replace(self.__placeholder_date["current_day"], str(datetime.today().day))
+
+        return self.__url
+
+    @url.setter
+    def url(self, value):
+        if validators.url(value):
+            self.__url = value
 
     def __repr__(self) -> str:
         return f"Url(id={self.id!r}, url={self.url!r}, local={self.local!r} ,type={self.type!r}, created_by_id={self.created_by_id!r}, created_at={self.created_at!r}, updated_by_id={self.updated_by_id!r}, updated_at={self.updated_at!r}, deleted_by_id={self.deleted_by_id!r}, deleted_at={self.deleted_at!r})"
