@@ -7,7 +7,7 @@ from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import DeclarativeBase
 
-from .Exception import *
+from app.ORM.Exception import *
 
 
 class __Base(DeclarativeBase):
@@ -39,7 +39,6 @@ class Url(__Base):
     def __repr__(self) -> str:
         return f"Url(id={self.id!r}, journal={self.journal!r}, url={self.url!r} ,editorial={self.editorial!r}, img={self.img!r}, body={self.body!r}, datetime={self.datetime!r})"
 
-
 class Sitemap(__Readonly):
     __tablename__ = "publication__param"
 
@@ -61,11 +60,11 @@ class Sitemap(__Readonly):
     def url(self):
 
         if "current_year" in self.__placeholder_date:
-            self.__url = self.__url.replace(self.__placeholder_date["current_year"], str(datetime.today().year))
+            self.__url = self.__url.replace(self.__placeholder_date["current_year"], f"{datetime.today().year}")
         if "current_month" in self.__placeholder_date:
-            self.__url = self.__url.replace(self.__placeholder_date["current_month"], str(datetime.today().month))
+            self.__url = self.__url.replace(self.__placeholder_date["current_month"], f"{datetime.today().month:02}")
         if "current_day" in self.__placeholder_date:
-            self.__url = self.__url.replace(self.__placeholder_date["current_day"], str(datetime.today().day))
+            self.__url = self.__url.replace(self.__placeholder_date["current_day"], f"{datetime.today().day:02}")
 
         return self.__url
 

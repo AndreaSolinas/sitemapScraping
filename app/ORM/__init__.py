@@ -1,11 +1,11 @@
 from app.utils import *
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
-from typing import Self
+from typing import Self, Union, Callable
 
 from . import Entity
 from .Exception import *
-from .Entity import __Readonly as Readonly
+from .Entity.Entity import __Readonly as Readonly
 
 
 class EntityManager(Session):
@@ -18,8 +18,9 @@ class EntityManager(Session):
         if hasattr(env, 'DATABASE_URL'):
             return env.DATABASE_URL
         else:
-            raise ODBCException("ODBC Url Not Found. Please, set the DATABASE_URL environment variable. with ODBC url.\n"
-                                "Ex.\n\t{driver}://{username}:{password}@{host}[:{port}]/{db_name}")
+            raise ODBCException(
+                "ODBC Url Not Found. Please, set the DATABASE_URL environment variable. with ODBC url.\n"
+                "Ex.\n\t{driver}://{username}:{password}@{host}[:{port}]/{db_name}")
 
     def insert(self, *entities: Entity) -> Self:
         for entity in entities:
@@ -32,13 +33,6 @@ class EntityManager(Session):
     def select(self, *entities, **knowargs):
         return super().query(*entities, **knowargs)
 
-    def commit(self):
-        try:
-            super().commit()
-        except Exception as e:
-            self.__rollback()
-            log.error(e)
-
     def __rollback(self):
         super().rollback()
 
@@ -48,10 +42,11 @@ class EntityManager(Session):
         log.debug('deleted object')
 
     def __enter__(self):
+        log.debug('start inside with statement')
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        log.debug('exit from with')
+        log.debug('exit from with statement')
         self.__del__()
 
 

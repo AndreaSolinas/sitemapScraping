@@ -1,6 +1,4 @@
-import logging
-import os, yaml
-import re
+import os, yaml, re
 from typing import Self
 
 
@@ -28,7 +26,9 @@ class YamlParser():
     def __set_yaml_config(self) -> Self:
 
         for yaml_file in self.__yaml_files:
-            name = re.sub(r'.+/(.*)\.yaml', r'\1', yaml_file)
+            name = (re.sub(r'.+/(.+)\.yaml', r'\1', yaml_file.lower())
+                    .replace('_','')
+                    .replace('.',''))
             with open(yaml_file, 'r') as stream:
                 self.__config[name] = yaml.safe_load(stream)
         return self
