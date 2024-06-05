@@ -1,10 +1,6 @@
-import urllib.parse
-
-import validators
-
 from app.utils import *
 from datetime import datetime
-import sqlalchemy
+import sqlalchemy, validators
 from sqlalchemy import event
 
 from sqlalchemy.orm import Mapped
