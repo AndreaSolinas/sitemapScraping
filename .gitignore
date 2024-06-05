@@ -1,11 +1,8 @@
+# hidden folder
+.*/
+__*/
+
 .env
 .env.local*
-.*/
-*.csv
-*.json
-stupidSpider.py
 test*
-test*.py
-test/
-__py*
-.idea/
+
