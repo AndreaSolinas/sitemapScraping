@@ -1,3 +1,3 @@
-from .Entity import Sitemap, Url
+from .Entity import Sitemap, Article
 
-__all__ = ['Sitemap', 'Url']
+__all__ = ['Sitemap', 'Article']

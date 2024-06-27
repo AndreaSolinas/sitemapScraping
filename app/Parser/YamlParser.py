@@ -8,9 +8,9 @@ class YamlParser():
 
     def __init__(self, path: str = 'config/'):
         self.path = path
-        self.set_yaml_file_to_load(self.path).__set_yaml_config()
+        self.set_file_to_load(self.path)
 
-    def set_yaml_file_to_load(self, path: str) -> Self:
+    def set_file_to_load(self, path: str) -> Self:
         if os.path.isdir(path):
             for element in os.listdir(path):
                 full_path = os.path.join(path, element)
@@ -21,9 +21,9 @@ class YamlParser():
 
         elif os.path.isfile(path) and path.endswith(".yaml"):
             self.__yaml_files.append(path)
-        return self
+        return self.__set_config()
 
-    def __set_yaml_config(self) -> Self:
+    def __set_config(self) -> Self:
 
         for yaml_file in self.__yaml_files:
             name = (re.sub(r'.+/(.+)\.yaml', r'\1', yaml_file.lower())

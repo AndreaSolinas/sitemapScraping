@@ -14,6 +14,20 @@ def __init_logger() -> logging.Logger:
 
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
+
+    # Configura il FileHandler per i messaggi di debug
+    debug_log_file_path = f'{__BASE_DIR__}/log/debug.log'
+    debug_file_handler = logging.FileHandler(debug_log_file_path)
+    debug_file_handler.setFormatter(formatter)
+    logger.addHandler(debug_file_handler)
+
+    # Configura il FileHandler per gli errori
+    error_log_file_path = f'{__BASE_DIR__}/log/error.log'
+    error_file_handler = logging.FileHandler(error_log_file_path)
+    error_file_handler.setLevel(logging.WARNING)
+    error_file_handler.setFormatter(formatter)
+    logger.addHandler(error_file_handler)
+
     return logger
 
 

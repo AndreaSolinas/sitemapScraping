@@ -1,4 +1,5 @@
 import dotenv
+from typing import Iterable
 
 
 class EnvironmentParser:
@@ -15,6 +16,9 @@ class EnvironmentParser:
         for index, value in self.__raw_env.items():
             if index == key:
                 return value
+    def all(self)-> Iterable[str]:
+        for key, value in self.__raw_env.items():
+            yield key, value
 
     def __getattr__(self, attribute):
         if attribute in self.__raw_env:

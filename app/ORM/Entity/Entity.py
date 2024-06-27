@@ -11,13 +11,12 @@ from app.ORM.Exception import *
 
 
 class __Base(DeclarativeBase):
+    __placeholder_date = yaml_config.settings["placeholder"]
     pass
 
 
-class __Readonly(DeclarativeBase):
+class __Readonly():
     def __init__(self):
-        super(DeclarativeBase, self).__init__()
-
         event.listen(self, 'before_insert', self.__raise_readonly_exc())
         event.listen(self, 'before_update', self.__raise_readonly_exc())
         event.listen(self, 'before_delete', self.__raise_readonly_exc())
@@ -26,39 +25,41 @@ class __Readonly(DeclarativeBase):
         raise ReadOnlyException()
 
 
-class Url(__Base):
+class Article(__Base):
     __tablename__ = "publication"
+
     id: Mapped[int] = mapped_column(sqlalchemy.BIGINT, primary_key=True)
-    journal: Mapped[str] = mapped_column(sqlalchemy.String)
-    url: Mapped[str] = mapped_column(sqlalchemy.String)
-    editorial: Mapped[str] = mapped_column(sqlalchemy.String, nullable=True)
+    journal: Mapped[str] = mapped_column(sqlalchemy.String, name="journal")
+    url: Mapped[str] = mapped_column(sqlalchemy.String, name='url')
+    editorial: Mapped[str | None] = mapped_column(sqlalchemy.String, nullable=True)
     img: Mapped[int | None] = mapped_column(sqlalchemy.Integer, nullable=True)
     body: Mapped[int | None] = mapped_column(sqlalchemy.Integer, nullable=True)
     datetime: Mapped[datetime] = mapped_column(sqlalchemy.DateTime(timezone=True))
 
     def __repr__(self) -> str:
-        return f"Url(id={self.id!r}, journal={self.journal!r}, url={self.url!r} ,editorial={self.editorial!r}, img={self.img!r}, body={self.body!r}, datetime={self.datetime!r})"
+        return f"Article(id={self.id!r}, journal={self.journal!r}, url={self.url!r} ,editorial={self.editorial!r}, img={self.img!r}, body={self.body!r}, datetime={self.datetime!r})"
 
-class Sitemap(__Readonly):
+
+class Sitemap(__Base, __Readonly):
     __tablename__ = "publication__param"
+    __placeholder_date = yaml_config.settings["placeholder"]
 
     id: Mapped[int] = mapped_column(sqlalchemy.BIGINT, primary_key=True)
 
     __url: Mapped[str] = mapped_column(sqlalchemy.String, name="url")
     local: Mapped[str] = mapped_column(sqlalchemy.String)
     type: Mapped[str] = mapped_column(sqlalchemy.String, default='xml-sitemap')
+
     created_by_id: Mapped[int] = mapped_column(sqlalchemy.BIGINT)
     updated_by_id: Mapped[int] = mapped_column(sqlalchemy.BIGINT)
     deleted_by_id: Mapped[int] = mapped_column(sqlalchemy.BIGINT)
+
     created_at: Mapped[datetime] = mapped_column(sqlalchemy.DateTime(timezone=True), default=datetime.now())
     updated_at: Mapped[datetime] = mapped_column(sqlalchemy.DateTime(timezone=True), default=datetime.now())
     deleted_at: Mapped[datetime] = mapped_column(sqlalchemy.DateTime(timezone=True), default=None, nullable=True)
 
-    __placeholder_date = yaml_config.settings["placeholder"]
-
     @property
     def url(self):
-
         if "current_year" in self.__placeholder_date:
             self.__url = self.__url.replace(self.__placeholder_date["current_year"], f"{datetime.today().year}")
         if "current_month" in self.__placeholder_date:
@@ -74,4 +75,4 @@ class Sitemap(__Readonly):
             self.__url = value
 
     def __repr__(self) -> str:
-        return f"Url(id={self.id!r}, url={self.url!r}, local={self.local!r} ,type={self.type!r}, created_by_id={self.created_by_id!r}, created_at={self.created_at!r}, updated_by_id={self.updated_by_id!r}, updated_at={self.updated_at!r}, deleted_by_id={self.deleted_by_id!r}, deleted_at={self.deleted_at!r})"
+        return f"Sitemap(id={self.id!r}, url={self.url!r}, local={self.local!r} ,type={self.type!r}, created_by_id={self.created_by_id!r}, created_at={self.created_at!r}, updated_by_id={self.updated_by_id!r}, updated_at={self.updated_at!r}, deleted_by_id={self.deleted_by_id!r}, deleted_at={self.deleted_at!r})"

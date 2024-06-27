@@ -19,3 +19,7 @@ Furthermore, in this version, the parameterization of configurations is to be us
 > Web scraping is not always a legal activity. 
 > Even if this information is public and can therefore be accessed by everyone, 
 > this project is still for personal use or with the approval of the site to be scraped.
+
+## License
+
+This project is proprietary and is not licensed for public distribution or modification. All rights reserved by the author.
