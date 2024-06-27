@@ -1,19 +1,12 @@
 #!/usr/venv/V3.12/bin/python
+import importlib
 import re
+import subprocess
 import sys, os, getpass
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-import random
-
-from scrapy import Spider
-from scrapy.crawler import CrawlerProcess
-from scrapy.settings import Settings
-
-from app.NetSpider import NewsArticleSpider
-
-import argparse
 from argparse import ArgumentParser
 
 from app.utils import *
@@ -50,12 +43,15 @@ class Console():
         article_drop.add_argument('--url', type=str, help="the url of article to delete")
         article_drop.add_argument('--all-entry', action='store_true', help="CAUTION!!  DELETE all article of db")
 
+        self.__commands.add_parser(name='database:backfill', help='backfill')
+
         env_var = self.__commands.add_parser(name='env', help='Set env variables')
         env_var.add_argument('name', nargs='?', type=str, help="Name of env variable")
         env_var.add_argument('value', nargs='?', type=str, help="Value of env variable")
         env_var.add_argument('--show', '-s',action='store_true', help="Show env variables")
 
-        self.__commands.add_parser(name='database:backfill', help='backfill')
+        self.__commands.add_parser(name='requirements', help='Create a requirements file')
+
 
         self.__select_command(self.__parser)
 
@@ -144,8 +140,18 @@ Some information for you:
                 if args.show:
                     for name, value in env.all():
                         print("%s = %s" % (name, value))
+
+            case 'requirements':
+                Console.__check_install_and_generate_requirements()
+                pass
             case _:
                 parser.print_help()
+
+    @staticmethod
+    def __check_install_and_generate_requirements():
+        if not importlib.util.find_spec('pipreqs'):
+            subprocess.check_call(['pip', 'install', 'pipreqs'])
+        subprocess.check_call(['pipreqs', '.', '--force'])
 
     @staticmethod
     def __get_all_article_entities(entity: Entity, *criterion, limit: int = None) -> list[Entity]:
