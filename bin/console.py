@@ -50,8 +50,8 @@ class Console():
         env_var.add_argument('value', nargs='?', type=str, help="Value of env variable")
         env_var.add_argument('--show', '-s',action='store_true', help="Show env variables")
 
-        self.__commands.add_parser(name='requirements', help='Create a requirements file')
-
+        req_file = self.__commands.add_parser(name='requirements', help='Create a requirements file')
+        req_file.add_argument('option', choices=['install', 'generate'], type=str, help="chose")
 
         self.__select_command(self.__parser)
 
@@ -142,16 +142,19 @@ Some information for you:
                         print("%s = %s" % (name, value))
 
             case 'requirements':
-                Console.__check_install_and_generate_requirements()
+                requirements_file = f'{__BASE_DIR__}/requirements.txt'""
+                try:
+                    if args.option == 'generate':
+                        with open(requirements_file, 'w') as f:
+                            subprocess.check_call(['pip', 'freeze'], stdout=f)
+                        print(f"Requirements generated succesfully")
+                    if args.option == 'install':
+                        subprocess.check_call(['pip', 'install', '-r', requirements_file])
+                except subprocess.CalledProcessError as e:
+                    print(f"Error in requirements generation: {e}")
                 pass
             case _:
                 parser.print_help()
-
-    @staticmethod
-    def __check_install_and_generate_requirements():
-        if not importlib.util.find_spec('pipreqs'):
-            subprocess.check_call(['pip', 'install', 'pipreqs'])
-        subprocess.check_call(['pipreqs', '.', '--force'])
 
     @staticmethod
     def __get_all_article_entities(entity: Entity, *criterion, limit: int = None) -> list[Entity]:
