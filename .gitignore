@@ -4,4 +4,3 @@ __*/
 .env.local*
 test*
 venv/
-*.log

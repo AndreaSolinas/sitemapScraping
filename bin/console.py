@@ -178,7 +178,7 @@ Some information for you:
                 Console.__cleaning_duplicate_article()
 
             case 'database:backfill':
-                Console.__fill_back()
+                Console.__back_fill()
 
             case _:
                 parser.print_help()
@@ -195,7 +195,7 @@ Some information for you:
         return query.all()
 
     @staticmethod
-    def __fill_back():
+    def __back_fill():
         #TODO: Prendi elementi on giusti del db e rifillali facendo un nuova richiesta di articolo
         #   NB: gestisci monrif con yaml
 
@@ -206,7 +206,6 @@ Some information for you:
             spider_take_of(NewsArticleSpider)
             print(NewsArticleSpider.data)
 
-        pass
 
     @staticmethod
     def __cleaning_duplicate_article() -> None:
