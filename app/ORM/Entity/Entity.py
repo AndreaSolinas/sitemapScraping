@@ -11,7 +11,6 @@ from app.ORM.Exception import *
 
 
 class __Base(DeclarativeBase):
-    __placeholder_date = yaml_config.settings["placeholder"]
     pass
 
 

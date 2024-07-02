@@ -1,8 +1,8 @@
 # hidden folder
 .*/
 __*/
-
 .env
 .env.local*
 test*
 venv/
+*.log

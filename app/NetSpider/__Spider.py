@@ -9,16 +9,6 @@ import json, cloudscraper
 from scrapy.spiders import SitemapSpider, XMLFeedSpider, Spider
 
 
-def __timing(method):
-    def wrapper(self):
-        timing = datetime.now()
-        log.debug("Start")
-        method(self)
-        log.debug("Finish")
-        log.info(f'"{method.__name__}" ha impiegato {(datetime.now() - timing)}')
-
-    return wrapper
-
 class RssFeedSpider(XMLFeedSpider):
     #TODO: Creare uno scraper per analizzare i feed rss.
     pass
@@ -42,6 +32,7 @@ class SitemapNewsSpider(SitemapSpider):
                 log.error("The request failed with status code: " + str(cloudflare.status_code))
 
     def parse(self, response):
+
         response = self.check_response(response)
 
         title = response.css('title::text').get()
@@ -89,6 +80,7 @@ class SitemapNewsSpider(SitemapSpider):
             except json.JSONDecodeError:
                 log.error(f"Error to parse JSON-LD: {script}")
         return schema_data
+
 
 class NewsArticleSpider(Spider):
     name = 'ArticleSpider'
@@ -157,14 +149,25 @@ class NewsArticleSpider(Spider):
         return schema_data
 
 
+def __timing(method):
+    def wrapper(self):
+        timing = datetime.now()
+        log.debug("Start")
+        method(self)
+        log.debug("Finish")
+        log.info(f'Spider took {(datetime.now() - timing)}')
+
+    return wrapper
+
+
 @__timing
 def spider_take_of(*spiders: type[Spider]) -> None:
-
     process = CrawlerProcess(Settings({
         "USER_AGENT": random.choice(yaml_config.net["USER_AGENT"]) or 'Mozilla/5.0',
         "LOG_ENABLED": env.DEBUG,
         "RETRY_ENABLED": True,
-        "HTTPERROR_ALLOWED_CODES": [404, 403]
+        "HTTPERROR_ALLOWED_CODES": [404, 403],
+        "LOG_FILE": 'log/debug.log'
     }))
 
     for spider in spiders:

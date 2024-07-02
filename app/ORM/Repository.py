@@ -9,6 +9,8 @@ from .Entity.Entity import __Readonly as Readonly
 
 
 class EntityManager(Session):
+    __count: int = 0
+
     def __init__(self) -> None:
         engine = create_engine(self.__find_engine(), echo=env.DEBUG)
         super().__init__(engine)
@@ -25,6 +27,7 @@ class EntityManager(Session):
     def add(self, instance: Entity, _warn: bool = True) -> Self:
         if isinstance(instance, Readonly):
             raise ReadOnlyException("Cannot add Readonly Entity.")
+        self.__count += 1
         super().add(instance, _warn=_warn)
         super().flush()
         return self
@@ -43,6 +46,10 @@ class EntityManager(Session):
 
     def __rollback(self):
         super().rollback()
+
+    def commit(self) -> None:
+        log.info(str(self.__count) + " committed article")
+        super().commit()
 
     def __del__(self):
         if hasattr(self, '_flushing'):
