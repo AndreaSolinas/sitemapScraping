@@ -1,4 +1,5 @@
 import logging
+
 from app.Parser import YamlParser, EnvironmentParser
 from pathlib import Path
 
@@ -16,9 +17,9 @@ def __init_logger() -> logging.Logger:
     logger.addHandler(stream_handler)
 
     # Configura il FileHandler per i messaggi di debug
-    debug_log_file_path = f'{__BASE_DIR__}/log/debug.log'
+    debug_log_file_path = f'{__BASE_DIR__}/log/info.log'
     debug_file_handler = logging.FileHandler(debug_log_file_path)
-    debug_file_handler.setLevel(logging.DEBUG if env.DEBUG else logging.INFO)
+    debug_file_handler.setLevel(logging.INFO)
     debug_file_handler.setFormatter(formatter)
     logger.addHandler(debug_file_handler)
 

@@ -1,5 +1,12 @@
+from typing import Type
+
 from . import Entity
-from .Repository import EntityManager, ArticleRepository, SitemapRepository
+from .Repository import ArticleRepository, SitemapRepository
 from . import Exception
 
-__all__ = ['Entity', 'EntityManager', 'Exception', 'ArticleRepository', 'SitemapRepository']
+
+from .Exception import *
+from .Entity import Article, Sitemap, Entity
+from .__EntityManager import entity_manager, EntityManager
+
+__all__ = ['Entity', 'entity_manager', 'EntityManager', 'Exception', 'ArticleRepository', 'SitemapRepository']

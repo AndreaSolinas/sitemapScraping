@@ -1,22 +1,21 @@
 #!venv/bin/python
-import pathlib
+
 import re
 import subprocess
 import sys, os, getpass
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).parent.parent)) ## IMPORT THE RELATIVE MODULE
+sys.path.append(str(Path(__file__).parent.parent))  ## IMPORT THE RELATIVE MODULE
 
 from argparse import ArgumentParser
 
 import sqlalchemy
-from sqlalchemy import create_engine, func, desc
+from sqlalchemy import create_engine
 
 from app.utils import *
-from app.ORM import EntityManager, Entity, ArticleRepository
+from app.ORM import Entity, ArticleRepository, entity_manager
 from app.ORM.Entity import Article, Sitemap
 from app.NetSpider import spider_take_of, NewsArticleSpider
-
 
 
 class Console:
@@ -26,7 +25,9 @@ class Console:
         epilog='Example: ./console.py hello'
     )
     __commands = __parser.add_subparsers(title="Database command", dest="command")
-    __entity_manager = EntityManager()
+    __article_repository = ArticleRepository()
+
+    # __sitemap_repository = SitemapRepository()
 
     def __init__(self):
         # self.__commands.add_parser(name='run', help='execute the main script',
@@ -135,8 +136,8 @@ Some information for you:
                         "usage: console.py [-h | --help] {command} [args] database:article:drop [-h] [--all-entry] id\nconsole.py [-h | --help] {command} [args] database:article:drop: error: the following arguments are required: id")
                     exit()
 
-                Console.__entity_manager.delete_all(doomed)
-                Console.__entity_manager.commit()
+                entity_manager.delete_all(doomed)
+                entity_manager.commit()
 
             case 'env':
                 if args.name:
@@ -184,7 +185,7 @@ Some information for you:
 
     @staticmethod
     def __get_all_article_entities(entity: Entity, *criterion, limit: int = None) -> list[Entity]:
-        query = Console.__entity_manager.query(entity).where(
+        query = entity_manager.query(entity).where(
             *criterion
         )
 
@@ -198,7 +199,7 @@ Some information for you:
         #TODO: Prendi elementi on giusti del db e rifillali facendo un nuova richiesta di articolo
         #   NB: gestisci monrif con yaml
 
-        all_stored_articles = ArticleRepository.get_all()
+        all_stored_articles = Console.__article_repository.get_all()
 
         for article in all_stored_articles:
             NewsArticleSpider.start_urls = article.url
@@ -209,15 +210,20 @@ Some information for you:
 
     @staticmethod
     def __cleaning_duplicate_article() -> None:
+        duplicate = Console.__article_repository.get_duplicate_url_desc()
+        if len(duplicate) > 0:
+            url_to_delete: list = []
+            for article in duplicate:
+                if article.url not in url_to_delete:
+                    url_to_delete.append(article.url)
+                else:
+                    Console.__article_repository.delete(article)
+                    pass
+            print(
+                f"Database cleaned: {len(duplicate) - 1} article{'s have' if len(duplicate) - 1 > 1 else 'has'} been delete")
+        else:
+            print(f"Nothing to clean in database")
 
-        query = Console.__entity_manager.query(Article).filter(
-            Article.url.in_(
-                Console.__entity_manager.query(Article.url).group_by(Article.url).having(
-                    func.count(Article.url) > 1)
-            )
-        ).order_by(Article.id)
-
-        # TODO: create an algoritm to delete the duplicate entity.url in result of query
 
 if __name__ == '__main__':
     Console()

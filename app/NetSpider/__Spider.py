@@ -100,6 +100,7 @@ class NewsArticleSpider(Spider):
                 log.error("The request failed with status code: " + str(cloudflare.status_code))
 
     def parse(self, response):
+
         response = self.check_response(response)
 
         title = response.css('title::text').get()
@@ -161,7 +162,7 @@ def __timing(method):
 
 
 @__timing
-def spider_take_of(*spiders: type[Spider]) -> None:
+def spider_take_of(*spiders: Spider) -> None:
     process = CrawlerProcess(Settings({
         "USER_AGENT": random.choice(yaml_config.net["USER_AGENT"]) or 'Mozilla/5.0',
         "LOG_ENABLED": env.DEBUG,
