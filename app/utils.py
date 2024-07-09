@@ -35,7 +35,7 @@ def __init_logger() -> logging.Logger:
 
 __BASE_DIR__ = str(Path(__file__).parent.parent)
 
-env = EnvironmentParser(__BASE_DIR__ + "/.env") #todo: se nonc'è env.py, altrimenti importa env.py e usa quello.
+env = EnvironmentParser(__BASE_DIR__ + "/.env")
 yaml_config = YamlParser(__BASE_DIR__ + "/config/")
 log = __init_logger()
 

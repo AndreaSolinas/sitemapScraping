@@ -1,9 +1,10 @@
 #!venv/bin/python
 
-import re
-import subprocess
-import sys, os, getpass
+import sys, os, getpass, re, subprocess
 from pathlib import Path
+from typing import Generator
+
+from scrapy import Spider
 
 sys.path.append(str(Path(__file__).parent.parent))  ## IMPORT THE RELATIVE MODULE
 
@@ -13,9 +14,9 @@ import sqlalchemy
 from sqlalchemy import create_engine
 
 from app.utils import *
-from app.ORM import Entity, ArticleRepository, entity_manager
+from app.ORM import Entity, ArticleRepository, entity_manager, SitemapRepository
 from app.ORM.Entity import Article, Sitemap
-from app.NetSpider import spider_take_of, NewsArticleSpider
+from app.NetSpider import spider_take_of, NewsArticleSpider, SitemapNewsSpider
 
 
 class Console:
@@ -26,12 +27,9 @@ class Console:
     )
     __commands = __parser.add_subparsers(title="Database command", dest="command")
     __article_repository = ArticleRepository()
-
-    # __sitemap_repository = SitemapRepository()
+    __sitemap_repository = SitemapRepository()
 
     def __init__(self):
-        # self.__commands.add_parser(name='run', help='execute the main script',
-        #                            description='Executes the main script avoiding the timing of the cronjob, which is executed anyway')
 
         self.__commands.add_parser(name='hello')
 
@@ -65,8 +63,9 @@ class Console:
 
         self.__select_command(self.__parser)
 
-        # NewsArticleSpider.start_urls = ["https://www.bolognatoday.it/politica/ballottaggi-Pd-Bologna-Pianoro-Casalecchio-Castel-maggiore.html"]
-        # self.__spider_take_of(NewsArticleSpider)
+        #TODO: Create a command to manage cronjob, install and delete it, and manage the time. (it can not be relative path)
+        #       *       *          *          *         *         {executor} {path to execute}
+        #   {minute} {hour} {day of month} {month} {day of week}
 
     @staticmethod
     def __select_command(parser: ArgumentParser):
@@ -95,6 +94,7 @@ Some information for you:
                 print(env.DATABASE_URL)
 
             case 'database:connection:test':
+
                 try:
                     create_engine(env.DATABASE_URL).connect()
                     print("Database connection test passed")
@@ -196,16 +196,63 @@ Some information for you:
 
     @staticmethod
     def __back_fill():
+
         #TODO: Prendi elementi on giusti del db e rifillali facendo un nuova richiesta di articolo
         #   NB: gestisci monrif con yaml
 
-        all_stored_articles = Console.__article_repository.get_all()
+        db_article = Console.__article_repository.get_all()
+        NewsArticleSpider.start_urls = [article.url for article in db_article]
+        spider_take_of(NewsArticleSpider)
 
-        for article in all_stored_articles:
-            NewsArticleSpider.start_urls = article.url
-            spider_take_of(NewsArticleSpider)
-            print(NewsArticleSpider.data)
+        for article in NewsArticleSpider.data:
+            # TODO: if article['url'] == db_art.url then update art else break
+            art = db_article[0]
+            if art.url == article['url']:
+                for schema in article['schema']:
+                    if schema['@type'] == 'NewsArticle':
+                        art.body = len(
+                            Console.find_recursive_key(schema, "articleBody").split()) if Console.find_recursive_key(
+                            schema,
+                            "articleBody") else (
+                            Console.find_recursive_key(schema, "wordCont") if Console.find_recursive_key(schema,
+                                                                                                         "wordCont") else None)
 
+                        art.img = (
+                            1 if Console.find_recursive_key(schema, "image") else 0)
+
+                for allowed in yaml_config.host['allowed']:
+                    if allowed in art.url:
+                        art.editorial = Console.map_source(article['editorial'])
+                        print(art.editorial)
+
+                entity_manager.add(art)
+                print(art)
+
+        # entity_manager.commit()
+
+        pass
+
+    @staticmethod
+    def update_entities(spider: Spider, articles: list[Entity]) -> Generator:
+
+        for article in spider.data:
+            for db_article in articles:
+                if db_article.url == article['url']:
+                    art = db_article
+
+            for schema in article['schema']:
+                if schema['@type'] == 'NewsArticle':
+                    art.body = len(
+                        Console.find_recursive_key(schema, "articleBody").split()) if Console.find_recursive_key(schema,
+                                                                                                                 "articleBody") else (
+                        Console.find_recursive_key(schema, "wordCont") if Console.find_recursive_key(schema,
+                                                                                                     "wordCont") else None)
+
+                    art.img = (
+                        1 if Console.find_recursive_key(schema, "image") else 0)
+
+            if art.datetime is not None:
+                yield art
 
     @staticmethod
     def __cleaning_duplicate_article() -> None:
@@ -222,6 +269,26 @@ Some information for you:
                 f"Database cleaned: {len(duplicate) - 1} article{'s have' if len(duplicate) - 1 > 1 else 'has'} been delete")
         else:
             print(f"Nothing to clean in database")
+
+    @staticmethod
+    def find_recursive_key(dictionary, key):
+        if key in dictionary:
+            return dictionary[key]
+        if isinstance(dictionary, dict):
+            for k, value in dictionary.items():
+                if isinstance(value, dict):
+                    result = Console.find_recursive_key(value, key)
+                    if result is not None:
+                        return result
+        return None
+
+    @staticmethod
+    def map_source(json_editorial: dict) -> str:
+        raw_source = Console.find_recursive_key(json_editorial, 'source')
+        if raw_source is not None and raw_source.lower() in list(yaml_config.host['source_mapping'].keys()):
+            return yaml_config.host['source_mapping'][raw_source.lower()]
+        else:
+            return yaml_config.host['source_mapping']['_default_']
 
 
 if __name__ == '__main__':

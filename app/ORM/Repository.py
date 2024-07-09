@@ -18,7 +18,8 @@ class __BaseRepository(ABC):
 
     def get_by_id(self, id: int, *criterion) -> Entity:
         return entity_manager.query(self.__entity).where(
-            self.__entity.id == id
+            self.__entity.id == id,
+            *criterion
         ).one()
 
 
