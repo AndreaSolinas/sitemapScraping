@@ -1,6 +1,7 @@
 import random
 from abc import ABC
 from datetime import datetime
+from email import feedparser
 
 from scrapy.crawler import CrawlerProcess
 from scrapy.settings import Settings
@@ -10,11 +11,11 @@ import json, cloudscraper
 from scrapy.spiders import SitemapSpider, XMLFeedSpider, Spider
 
 
-class BaseSpider(ABC):
+class BaseSpider(ABC, Spider):
     data: list = []
 
     @staticmethod
-    def check_response(response):
+    def __check_response(response):
         if response.status != 403:
             return response
         else:
@@ -26,10 +27,11 @@ class BaseSpider(ABC):
 
     def parse(self, response):
 
-        response = self.check_response(response)
+        response = self.__check_response(response)
 
         title = response.css('title::text').get()
         canonical = response.xpath('//link[@rel="canonical"]/@href').get()
+
         self.data.append(
             {
                 'url': response.url,
@@ -81,20 +83,26 @@ class BaseSpider(ABC):
 
 
 class RssFeedSpider(BaseSpider, XMLFeedSpider):
-    #TODO: Creare uno scraper per analizzare i feed rss.
-    pass
+    name = 'RssSpider'
+    # iterator = "channel"
+    itertag = "item"
+
+    def parse_node(self, response, node):
+        title = node.xpath('title/text()').get()
+        link = node.xpath('link/text()').get()
+        description = node.xpath('description/text()').get()
+
+        print(title, link, description)
 
 
 class SitemapNewsSpider(BaseSpider, SitemapSpider):
     name: str = 'sitemapArticleSpider'
     sitemap_urls: list[str] = []
-    #TODO: Trva un modo per appendere il local nel self.data
+    __local: str
 
 
-class NewsArticleSpider(BaseSpider, Spider):
+class NewsArticleSpider(BaseSpider):
     name = 'ArticleSpider'
-
-    start_urls: str | list = []
 
 
 def __timing(method):
@@ -109,12 +117,12 @@ def __timing(method):
 
 
 @__timing
-def spider_take_of(*spiders: Spider) -> None:
+def spider_take_of(*spiders: Spider, ) -> None:
     process = CrawlerProcess(Settings({
         "USER_AGENT": random.choice(yaml_config.net["USER_AGENT"]) or 'Mozilla/5.0',
         "LOG_ENABLED": env.DEBUG,
         "RETRY_ENABLED": True,
-        "HTTPERROR_ALLOWED_CODES": [404, 403]
+        "HTTPERROR_ALLOWED_CODES": [404, 403],
     }))
 
     for spider in spiders:

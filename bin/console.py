@@ -11,9 +11,9 @@ sys.path.append(str(Path(__file__).parent.parent))  ## IMPORT THE RELATIVE MODUL
 from argparse import ArgumentParser
 
 import sqlalchemy
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, or_
 
-from app.utils import *
+import app.utils
 from app.ORM import Entity, ArticleRepository, entity_manager, SitemapRepository
 from app.ORM.Entity import Article, Sitemap
 from app.NetSpider import spider_take_of, NewsArticleSpider, SitemapNewsSpider
@@ -79,24 +79,24 @@ Some information for you:
 \t- You are {getpass.getuser()}
 \t   and we are Venom :)
 \t- You run this project from: {os.getcwd()}
-\t- The project directory are: {__BASE_DIR__}
-\t- {'You are in DEVELOPMENT mode\n\t   if you want switch to production set DEBUG environment variable to False' if env.DEBUG else 'You are in PRODUCTION mode'}
+\t- The project directory are: {app.utils.__BASE_DIR__}
+\t- {'You are in DEVELOPMENT mode\n\t   if you want switch to production set DEBUG environment variable to False' if app.utils.env.DEBUG else 'You are in PRODUCTION mode'}
 \t- The core of project are: app/
 \t- All runs are logging in: log/
 \t- {'main.py not exist, create it' if True else 'All is Set Ud'}
-\t- This is a CLI command module in: {str(Path(__file__)).replace(__BASE_DIR__ + '/', '')}
+\t- This is a CLI command module in: {str(Path(__file__)).replace(app.utils.__BASE_DIR__ + '/', '')}
 \t- -h or -help to find a command that you can use for this project
     """)
             case 'run':
                 # Run a Main script
                 pass
             case 'database:connection':
-                print(env.DATABASE_URL)
+                print(app.utils.env.DATABASE_URL)
 
             case 'database:connection:test':
 
                 try:
-                    create_engine(env.DATABASE_URL).connect()
+                    create_engine(app.utils.env.DATABASE_URL).connect()
                     print("Database connection test passed")
                 except sqlalchemy.exc.SQLAlchemyError as eConn:
                     print("Database connection error: ")
@@ -145,7 +145,7 @@ Some information for you:
                     if not args.value:
                         print('THe value must be setted Ex. ./console.py env name value')
                     else:
-                        with open(__BASE_DIR__ + "/.env", 'r+') as env_file:
+                        with open(app.utils.__BASE_DIR__ + "/.env", 'r+') as env_file:
 
                             file = env_file.read()
 
@@ -158,11 +158,11 @@ Some information for you:
                                 env_file.seek(0, 2)
                                 env_file.write(f'\n{args.name}={args.value}')
                 if args.show:
-                    for name, value in env.all():
+                    for name, value in app.utils.env.all():
                         print("%s = %s" % (name, value))
 
             case 'requirements':
-                requirements_file = f'{__BASE_DIR__}/requirements.txt'""
+                requirements_file = f'{app.utils.__BASE_DIR__}/requirements.txt'""
                 try:
                     if args.option == 'generate':
                         with open(requirements_file, 'w') as f:
@@ -197,16 +197,18 @@ Some information for you:
     @staticmethod
     def __back_fill():
 
-        #TODO: Prendi elementi on giusti del db e rifillali facendo un nuova richiesta di articolo
-        #   NB: gestisci monrif con yaml
-
         db_article = Console.__article_repository.get_all()
-        NewsArticleSpider.start_urls = [article.url for article in db_article]
+
+        all_article = (article.url for article in db_article)
+
+        NewsArticleSpider.start_urls = all_article
+
         spider_take_of(NewsArticleSpider)
 
-        for article in NewsArticleSpider.data:
-            # TODO: if article['url'] == db_art.url then update art else break
-            art = db_article[0]
+        for art in db_article:
+            NewsArticleSpider.start_urls = art.url
+            spider_take_of(NewsArticleSpider)
+            article = NewsArticleSpider.data[0]
             if art.url == article['url']:
                 for schema in article['schema']:
                     if schema['@type'] == 'NewsArticle':
@@ -220,15 +222,11 @@ Some information for you:
                         art.img = (
                             1 if Console.find_recursive_key(schema, "image") else 0)
 
-                for allowed in yaml_config.host['allowed']:
-                    if allowed in art.url:
-                        art.editorial = Console.map_source(article['editorial'])
-                        print(art.editorial)
+                for allowed in app.utils.yaml_config.host['allowed']:
+                        if allowed in art.url:
+                            art.editorial = Console.map_source(article['editorial'])
 
-                entity_manager.add(art)
-                print(art)
-
-        # entity_manager.commit()
+        entity_manager.commit()
 
         pass
 
@@ -285,10 +283,10 @@ Some information for you:
     @staticmethod
     def map_source(json_editorial: dict) -> str:
         raw_source = Console.find_recursive_key(json_editorial, 'source')
-        if raw_source is not None and raw_source.lower() in list(yaml_config.host['source_mapping'].keys()):
-            return yaml_config.host['source_mapping'][raw_source.lower()]
+        if raw_source is not None and raw_source.lower() in list(app.utils.yaml_config.host['source_mapping'].keys()):
+            return app.utils.yaml_config.host['source_mapping'][raw_source.lower()]
         else:
-            return yaml_config.host['source_mapping']['_default_']
+            return app.utils.yaml_config.host['source_mapping']['_default_']
 
 
 if __name__ == '__main__':

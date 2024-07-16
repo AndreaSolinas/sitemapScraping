@@ -11,10 +11,8 @@ class __BaseRepository(ABC):
     def __init__(self):
         self.__entity = getattr(Entity, self.__class__.__name__.replace('Repository', ''))
 
-    def get_all(self, *criterion) -> list[Entity]:
-        return entity_manager.query(self.__entity).where(
-            *criterion
-        ).all()
+    def get_all(self) -> list[Entity]:
+        return entity_manager.query(self.__entity).all()
 
     def get_by_id(self, id: int, *criterion) -> Entity:
         return entity_manager.query(self.__entity).where(
@@ -22,10 +20,15 @@ class __BaseRepository(ABC):
             *criterion
         ).one()
 
+    def get_by(self, *criterion) -> list[Entity]:
+        return entity_manager.query(self.__entity).where(
+            *criterion
+        ).all()
+
 
 class SitemapRepository(__BaseRepository):
     def get_all_active(self, *criterion) -> list[Entity]:
-        return self.get_all(
+        return self.get_by(
             Sitemap.deleted_at == None,
             Sitemap.deleted_by_id == None,
             *criterion
