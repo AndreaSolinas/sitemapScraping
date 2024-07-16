@@ -11,7 +11,7 @@ sys.path.append(str(Path(__file__).parent.parent))  ## IMPORT THE RELATIVE MODUL
 from argparse import ArgumentParser
 
 import sqlalchemy
-from sqlalchemy import create_engine, or_
+from sqlalchemy import create_engine
 
 import app.utils
 from app.ORM import Entity, ArticleRepository, entity_manager, SitemapRepository
@@ -83,7 +83,7 @@ Some information for you:
 \t- {'You are in DEVELOPMENT mode\n\t   if you want switch to production set DEBUG environment variable to False' if app.utils.env.DEBUG else 'You are in PRODUCTION mode'}
 \t- The core of project are: app/
 \t- All runs are logging in: log/
-\t- {'main.py not exist, create it' if True else 'All is Set Ud'}
+\t- {'main.py not exist, create it' if not Path('main.py').exists() else 'All is Set Ud'}
 \t- This is a CLI command module in: {str(Path(__file__)).replace(app.utils.__BASE_DIR__ + '/', '')}
 \t- -h or -help to find a command that you can use for this project
     """)

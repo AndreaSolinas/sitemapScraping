@@ -25,7 +25,7 @@ class __Readonly():
 
 
 class Article(__Base):
-    __tablename__ = "publication"
+    __tablename__ = yaml_config.orm['entity']['Article']['table_name']
 
     id: Mapped[int] = mapped_column(sqlalchemy.BIGINT, primary_key=True)
     journal: Mapped[str] = mapped_column(sqlalchemy.String, name="journal")
@@ -40,7 +40,7 @@ class Article(__Base):
 
 
 class Sitemap(__Base, __Readonly):
-    __tablename__ = "publication__param"
+    __tablename__ = yaml_config.orm['entity']['Sitemap']['table_name']
     __placeholder_date = yaml_config.settings["placeholder"]
 
     id: Mapped[int] = mapped_column(sqlalchemy.BIGINT, primary_key=True)

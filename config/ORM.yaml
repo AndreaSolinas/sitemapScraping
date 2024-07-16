@@ -1,0 +1,5 @@
+entity:
+  Sitemap:
+    table_name: 'publication__param'
+  Article:
+    table_name: 'publication'
